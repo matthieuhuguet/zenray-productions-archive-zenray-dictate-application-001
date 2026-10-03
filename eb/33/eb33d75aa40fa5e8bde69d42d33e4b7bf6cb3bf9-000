@@ -9,7 +9,7 @@ final class GeminiWebTranscriber: NSObject, WKNavigationDelegate, WKUIDelegate, 
         static let readyTimeout: TimeInterval = 30
         static let responseTimeout: TimeInterval = 45
         static let maximumAudioBytes = 64 * 1024 * 1024
-        static let capsuleWidth: CGFloat = 860
+        static let capsuleWidth: CGFloat = 720
         static let capsuleMinimumHeight: CGFloat = 76
         static let capsuleMaximumHeight: CGFloat = 250
         static let sessionID = UUID(uuidString: "72BB7BB9-9B1C-4DF7-BC76-6F8C4BE422D1")!
@@ -75,7 +75,7 @@ final class GeminiWebTranscriber: NSObject, WKNavigationDelegate, WKUIDelegate, 
         sessionWindow.styleMask = [.borderless,.nonactivatingPanel]
         sessionWindow.backgroundColor = .clear
         sessionWindow.setContentSize(NSSize(width:Settings.capsuleWidth,height:Settings.capsuleMinimumHeight))
-        if let screen = NSScreen.main { let frame=screen.visibleFrame; sessionWindow.setFrameOrigin(NSPoint(x:frame.midX-430,y:frame.minY+22)) }
+        if let screen = NSScreen.main { let frame=screen.visibleFrame; sessionWindow.setFrameOrigin(NSPoint(x:frame.midX-Settings.capsuleWidth/2,y:frame.minY+22)) }
         if activate { sessionWindow.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps:true) }
         else { sessionWindow.orderFrontRegardless() }
     }
@@ -121,7 +121,7 @@ final class GeminiWebTranscriber: NSObject, WKNavigationDelegate, WKUIDelegate, 
     }
 
     func toggleLiveMicrophone() { releaseTask?.cancel(); handsFree=true; if liveRecording || liveStarting { stopLiveMicrophone() } else { startLiveMicrophone() } }
-    func cancelLiveMicrophone() { stopLiveMicrophone() }
+    func cancelLiveMicrophone() { releaseTask?.cancel(); stopLiveMicrophone(); if compact { sessionWindow.orderOut(nil) } }
     private func showLiveError(_ error:Error) {
         Log.write("Gemini live microphone: \(error.localizedDescription)")
         let alert = NSAlert(); alert.messageText = "Gemini microphone unavailable"; alert.informativeText = error.localizedDescription + " Open Gemini session from the menu to check access."; alert.beginSheetModal(for:sessionWindow)
