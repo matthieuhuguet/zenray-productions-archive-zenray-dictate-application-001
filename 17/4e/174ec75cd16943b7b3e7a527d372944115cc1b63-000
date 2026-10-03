@@ -47,6 +47,7 @@ struct InsertionTarget {
                 collect(windowValue as! AXUIElement,depth:0)
             }
         }
+        context = String(context.prefix(6000))
         return InsertionTarget(application: application, element: element, selectedText: selection, context: context, secure: secure, selectedRange: read(kAXSelectedTextRangeAttribute))
     }
     @MainActor func insert(_ text: String, restoreDelay: Double) async throws {

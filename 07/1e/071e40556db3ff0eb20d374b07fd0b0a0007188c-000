@@ -34,7 +34,7 @@ struct DictationPreferences: Codable {
     var whisperExecutable = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".venvs/asr-ja/bin/mlx_whisper").path
     var whisperModel = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".cache/huggingface/hub/models--mlx-community--whisper-large-v3-turbo/snapshots/a4aaeec0636e6fef84abdcbe3544cb2bf7e9f6fb").path
     var parakeetExecutable = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".venvs/asr-ja/bin/parakeet-mlx").path
-    var parakeetModel = "mlx-community/parakeet-tdt-0.6b-v3"
+    var parakeetModel = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".cache/huggingface/hub/models--mlx-community--parakeet-tdt_ctc-0.6b-ja/snapshots/e3810190ff521dcd208bc444a71bf877f3864566").path
     // 3 October 2026, 19:45 CEST: older libraries retain settings when new preferences are added.
     init() {}
     enum CodingKeys: String, CodingKey { case engine, localOnly, allowLocalFallback, keepAudio, keepHistory, learnVocabulary, whisperMode, fnPushToTalk, shortcutKeyCode, shortcutModifiers, activeMode, language, clipboardRestoreDelay, doublePressInterval, model, whisperExecutable, whisperModel, parakeetExecutable, parakeetModel }
@@ -133,8 +133,9 @@ final class DictationLibrary {
             if index == 0 && ["spoken", "term", "from"].contains(row[0].lowercased()) { return nil }
             return TextRule(spoken: row[0], written: row[1])
         }
+        let before = document.vocabulary.count
         for rule in rules where !document.vocabulary.contains(where: { $0.spoken.caseInsensitiveCompare(rule.spoken) == .orderedSame }) { document.vocabulary.append(rule) }
-        try save(); return rules.count
+        try save(); return document.vocabulary.count - before
     }
     func learnCorrection(before: String, after: String) {
         guard document.preferences.learnVocabulary else { return }
