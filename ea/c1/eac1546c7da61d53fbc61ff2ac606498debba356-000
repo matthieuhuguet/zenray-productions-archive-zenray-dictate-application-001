@@ -26,6 +26,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         Log.write("launched")
+        // 3 October 2026, 21:55 CEST: prevent AirPods reconnection from replacing the built-in input.
+        BuiltinMicrophone.shared.onFailure = { error in Log.write(error.localizedDescription) }
+        do { try BuiltinMicrophone.shared.start() } catch { Log.write(error.localizedDescription) }
         buildMainMenu()
         buildStatusItem()
         LoginItem.enable()
@@ -190,5 +193,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         legacyDictateHotKey.unregister()
         cancelHotKey.unregister()
         fnKey.stop()
+        BuiltinMicrophone.shared.stop()
     }
 }

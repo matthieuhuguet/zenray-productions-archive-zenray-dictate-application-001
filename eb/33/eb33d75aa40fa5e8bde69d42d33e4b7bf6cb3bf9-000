@@ -100,6 +100,7 @@ final class GeminiWebTranscriber: NSObject, WKNavigationDelegate, WKUIDelegate, 
 
     func startLiveMicrophone() {
         guard !liveRecording, !liveStarting, continuation == nil else { return }
+        do { try BuiltinMicrophone.shared.pin() } catch { showLiveError(error); return }
         stopRequested = false; liveStarting = true
         showComposer(activate:false)
         webView.evaluateJavaScript("window.ZenRayComposer.microphone(false)") { [weak self] _,error in
@@ -259,7 +260,9 @@ final class GeminiWebTranscriber: NSObject, WKNavigationDelegate, WKUIDelegate, 
 
     func webView(_ webView: WKWebView, requestMediaCapturePermissionFor origin: WKSecurityOrigin, initiatedByFrame frame: WKFrameInfo, type: WKMediaCaptureType, decisionHandler: @escaping (WKPermissionDecision) -> Void) {
         // 3 October 2026, 15:52 CEST: the bridge supplies saved audio; other media prompts remain user-controlled.
-        decisionHandler(origin.host == Settings.url.host && type == .microphone ? .prompt : .deny)
+        guard origin.host == Settings.url.host,type == .microphone else { decisionHandler(.deny); return }
+        do { try BuiltinMicrophone.shared.pin(); decisionHandler(.prompt) }
+        catch { showLiveError(error); decisionHandler(.deny) }
     }
 }
 
