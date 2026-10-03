@@ -6,6 +6,11 @@ final class LibraryTests: XCTestCase {
     var root: URL!
     override func setUpWithError() throws { root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString); try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true) }
     override func tearDownWithError() throws { try FileManager.default.removeItem(at:root) }
+    func testOldPreferencesDecodeWithDefaults() throws {
+        let preferences = try JSONDecoder().decode(DictationPreferences.self,from:Data("{\"keepAudio\":true,\"activeMode\":\"code\"}".utf8))
+        XCTAssertTrue(preferences.keepAudio); XCTAssertEqual(preferences.activeMode,"code")
+        XCTAssertEqual(preferences.engine,.gemini); XCTAssertFalse(preferences.localOnly)
+    }
     func testQuotedCSVAndRejectedBrokenQuote() throws {
         XCTAssertEqual(try CSVRows.parse("spoken,written\r\n\"zen, ray\",\"Zen\"\"Ray\"\n"),[["spoken","written"],["zen, ray","Zen\"Ray"]])
         XCTAssertThrowsError(try CSVRows.parse("\"unfinished,value"))

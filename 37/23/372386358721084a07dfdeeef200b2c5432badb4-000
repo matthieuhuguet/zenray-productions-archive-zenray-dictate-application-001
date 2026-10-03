@@ -174,6 +174,7 @@ final class DictationCoordinator {
                 if !inserted && !library.document.preferences.keepHistory {
                     NSPasteboard.general.clearContents(); NSPasteboard.general.setString(output,forType:.string)
                 }
+                library.document.lastError = nil
                 try library.record(raw:result.text,text:output,provider:result.provider,mode:selected.id,application:destination?.application.bundleIdentifier ?? "Imported file",audioURL:audio,inserted:inserted)
                 if ownsAudio { try FileManager.default.removeItem(at:audio) }
                 pendingURL = nil; if ownsAudio { try? FileManager.default.removeItem(at:pendingFile) }; state = .idle; command = false; handsFree = false; onUpdate?()
@@ -201,7 +202,9 @@ final class DictationCoordinator {
         return try await TranscriptionPipeline.rewrite(input,instruction:instruction,model:library.document.preferences.model)
     }
     private func fail(_ message: String) {
-        state = .idle; capsule.show(message); Log.write(message); dismissLater(); onUpdate?()
+        state = .idle; library.document.lastError = message
+        do { try library.save() } catch { Log.write("Error state could not be saved: " + error.localizedDescription) }
+        capsule.show(message); Log.write(message); dismissLater(); onUpdate?()
     }
     private func dismissLater() {
         Task { [weak self] in try? await Task.sleep(nanoseconds:5_000_000_000); if self?.state == .idle { self?.capsule.hide() } }

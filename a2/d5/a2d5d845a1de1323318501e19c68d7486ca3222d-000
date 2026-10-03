@@ -522,7 +522,15 @@ private final class ComposerViewController: NSViewController {
             do {
                 let result = try await self?.transcriber.transcribe(audioURL: savedURL)
                 guard let self, let result else { return }
-                await MainActor.run { self.finishTranscription(result) }
+                let library = DictationLibrary.shared
+                let mode = library.mode(for:"")
+                var text = library.normalize(result.text)
+                if !library.document.preferences.localOnly, !mode.prompt.isEmpty {
+                    text = try await TranscriptionPipeline.rewrite(text,instruction:mode.prompt + "\nTone: " + mode.tone,model:library.document.preferences.model)
+                }
+                try library.record(raw:result.text,text:text,provider:result.provider,mode:mode.id,application:"ZenRayDictate composer",audioURL:savedURL,inserted:true)
+                let formatted = TranscriptionResult(text:text,provider:result.provider)
+                await MainActor.run { self.finishTranscription(formatted) }
             } catch {
                 guard let self else { return }
                 await MainActor.run { self.failTranscription(error) }

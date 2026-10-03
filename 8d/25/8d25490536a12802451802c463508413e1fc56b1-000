@@ -42,6 +42,7 @@ final class LibraryViewModel: ObservableObject {
     var modes: [DictationMode] { DictationLibrary.shared.document.modes }
     func reload() {
         let document = DictationLibrary.shared.document
+        if let error = document.lastError { message = error }
         records = document.history.reversed().map { $0 }
         preferences = document.preferences
         let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted,.sortedKeys]
