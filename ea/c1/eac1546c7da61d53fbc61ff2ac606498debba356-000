@@ -106,6 +106,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(.separator())
 
         add(menu, "Show composer", #selector(showComposer))
+        add(menu, "Gemini session / Sign in", #selector(showGeminiSession))
         add(menu, "Retry last recording", #selector(retryRecording))
         add(menu, "Copy composer text", #selector(copyComposer))
         add(menu, "Paste into composer", #selector(pasteComposer))
@@ -129,6 +130,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(item)
     }
 
+    // 3 October 2026, 15:52 CEST: login belongs to the app session, independent of the personal browser.
+    @objc private func showGeminiSession() { Task { @MainActor in TranscriptionPipeline.showGemini() } }
     @objc private func showComposer() { composer.show() }
     @objc private func clearComposer() { composer.clearComposer() }
     @objc private func copyComposer() { composer.copyComposerText() }

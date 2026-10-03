@@ -8,6 +8,10 @@
 		<data>
 		6R8LQBgm306GruHBfOMXTTEzYR4=
 		</data>
+		<key>Resources/GeminiBridge.js</key>
+		<data>
+		q3dUkshmmrIbI7A+DFqXsLblEsg=
+		</data>
 	</dict>
 	<key>files2</key>
 	<dict>
@@ -16,6 +20,13 @@
 			<key>hash2</key>
 			<data>
 			qilMXAEizXjcdcVc/dHSqyFDuc3ylRJ08Aybj4RGFL0=
+			</data>
+		</dict>
+		<key>Resources/GeminiBridge.js</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			W+10yyfcReV/DHVgemK4Mv1mBSEAnEUz1rYtfGcM8YE=
 			</data>
 		</dict>
 	</dict>
