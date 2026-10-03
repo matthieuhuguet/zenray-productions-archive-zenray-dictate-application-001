@@ -30,6 +30,11 @@ final class Probe: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessage
             self.web.evaluateJavaScript("Boolean(window.ZenRayGemini?.ready())") { value,error in
                 guard value as? Bool == true, !sent, CommandLine.arguments.count > 1 else { return }
                 sent = true; timer.invalidate()
+                // 3 October 2026, 21:32 CEST: inspect only the composer structure, excluding chat contents.
+                if CommandLine.arguments[1] == "--inspect" {
+                    self.web.evaluateJavaScript("JSON.stringify((()=>{let e=document.querySelector('[role= textbox][contenteditable=true]');let a=[];while(e&&a.length<12){a.push({tag:e.tagName,classes:e.className,height:e.getBoundingClientRect().height});e=e.parentElement;}return a;})())") { value,error in print(value ?? error as Any); fflush(stdout); exit(error == nil ? 0 : 1) }
+                    return
+                }
                 if CommandLine.arguments[1] == "--rewrite" {
                     self.web.callAsyncJavaScript("await window.ZenRayGemini.rewrite(payload)",arguments:["payload":["id":"probe","instruction":"Correct only punctuation. Return only the corrected text.","text":"Bonjour ceci est un test","model":"Flash"]],in:nil,in:.page) { result in print(result); fflush(stdout) }
                     return
