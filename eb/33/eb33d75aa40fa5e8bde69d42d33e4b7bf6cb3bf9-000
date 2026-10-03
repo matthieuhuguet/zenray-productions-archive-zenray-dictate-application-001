@@ -134,7 +134,7 @@ final class GeminiWebTranscriber: NSObject, WKNavigationDelegate, WKUIDelegate, 
         do { try BuiltinMicrophone.shared.pin() } catch { showLiveError(error);return }
         stopRequested=false;liveStarting=true;onLiveState?("starting")
         prepareHiddenCapture()
-        webView.callAsyncJavaScript("await window.ZenRayComposer.begin()",arguments:[:],in:nil,in:.page) { [weak self] result in
+        webView.callAsyncJavaScript("const deadline=Date.now()+15000;while(!window.ZenRayComposer && Date.now()<deadline)await new Promise(r=>setTimeout(r,100));if(!window.ZenRayComposer)throw new Error('Gemini has not loaded. Retry once the session is ready.');await window.ZenRayComposer.begin()",arguments:[:],in:nil,in:.page) { [weak self] result in
             guard let self else { return }
             self.liveStarting=false
             if case let .failure(error)=result { self.liveRecording=false;self.showLiveError(error);return }
@@ -167,6 +167,29 @@ final class GeminiWebTranscriber: NSObject, WKNavigationDelegate, WKUIDelegate, 
         let alert=NSAlert();alert.messageText="Gemini dictation unavailable";alert.informativeText=error.localizedDescription
         alert.beginSheetModal(for:sessionWindow)
     }
+
+    #if DEBUG
+    // 3 October 2026, 22:20 CEST: the verification build substitutes synthetic audio without opening a real microphone.
+    func installVerificationAudio(_ audio:Data) {
+        let controller=webView.configuration.userContentController,scripts=controller.userScripts
+        controller.removeAllUserScripts()
+        let script="""
+        navigator.mediaDevices.getUserMedia=async()=>{const bytes=Uint8Array.from(atob('\(audio.base64EncodedString())'),c=>c.charCodeAt(0));const c=new AudioContext();const b=await c.decodeAudioData(bytes.buffer);const d=c.createMediaStreamDestination();const source=c.createBufferSource();source.buffer=b;source.connect(d);await c.resume();source.start();d.stream.getAudioTracks().forEach(t=>t.addEventListener('ended',()=>c.close(),{once:true}));return d.stream;};
+        """
+        controller.addUserScript(WKUserScript(source:script,injectionTime:.atDocumentStart,forMainFrameOnly:true))
+        scripts.forEach { controller.addUserScript($0) }
+        webView.reload()
+    }
+    func verificationState() async throws -> [String:Any] {
+        var result=(try await webView.evaluateJavaScript("({ready:!!window.ZenRayComposer&&!!window.ZenRayGemini?.ready(),draft:document.querySelector('[role=\"textbox\"][contenteditable=\"true\"]')?.innerText||''})")) as? [String:Any] ?? [:]
+        result["presented"]=composerPresented;result["alpha"]=Double(sessionWindow.alphaValue)
+        result["recording"]=liveRecording;result["starting"]=liveStarting;result["finishing"]=liveFinishing
+        result["width"]=Double(sessionWindow.frame.width)
+        result["right"]=Double(sessionWindow.frame.maxX)
+        result["screenRight"]=Double(NSScreen.main?.visibleFrame.maxX ?? 0)
+        return result
+    }
+    #endif
 
     func showSession() {
         fadeGeneration += 1;composerPresented=true
