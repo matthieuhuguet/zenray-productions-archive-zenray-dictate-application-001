@@ -4,6 +4,8 @@ import AppKit
 @main struct VerifyFnCapture {
     @MainActor static func main() {
         fputs("Fn probe boot\n",stderr);fflush(stderr)
+        ProcessInfo.processInfo.disableAutomaticTermination("Verification in progress")
+        ProcessInfo.processInfo.disableSuddenTermination()
         NSApplication.shared.setActivationPolicy(.accessory)
         Task { @MainActor in
             do {
@@ -12,10 +14,11 @@ import AppKit
                 fputs("Fn probe initialized\n",stderr);fflush(stderr)
                 let audio=try Data(contentsOf:URL(fileURLWithPath:CommandLine.arguments[1]))
                 web.installVerificationAudio(audio)
+                fputs("Fn probe audio installed\n",stderr);fflush(stderr)
                 var states=[String]();web.onLiveState={ states.append($0) }
                 let deadline=Date().addingTimeInterval(35)
                 while Date()<deadline {
-                    if let state=try? await web.verificationState(),state["ready"] as? Bool==true { break }
+                    if let state=try? await web.verificationState(),state["ready"] as? Bool==true { fputs("Fn probe ready\n",stderr);fflush(stderr);break }
                     try await Task.sleep(nanoseconds:200_000_000)
                 }
                 let clipboard=NSPasteboard.general
