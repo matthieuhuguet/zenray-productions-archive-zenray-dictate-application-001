@@ -36,11 +36,18 @@ final class GeminiWebTranscriber: NSObject, WKNavigationDelegate, WKUIDelegate, 
     private var lastCaptureID: String?
     var onLiveState: ((String) -> Void)?
 
+    #if DEBUG
+    static var verificationScript: String?
+    #endif
+
     override init() {
         super.init()
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = WKWebsiteDataStore(forIdentifier: Settings.sessionID)
         configuration.mediaTypesRequiringUserActionForPlayback = []
+        #if DEBUG
+        if let script=Self.verificationScript { configuration.userContentController.addUserScript(WKUserScript(source:script,injectionTime:.atDocumentStart,forMainFrameOnly:true)) }
+        #endif
         configuration.userContentController.add(self, name: "dictation")
         configuration.userContentController.add(self,name:"composerLayout")
         configuration.userContentController.add(self,name:"liveCapture")
@@ -74,7 +81,7 @@ final class GeminiWebTranscriber: NSObject, WKNavigationDelegate, WKUIDelegate, 
         #if !DEBUG
         outsideMonitor = NSEvent.addGlobalMonitorForEvents(matching:[.leftMouseDown,.rightMouseDown]) { [weak self] _ in Task { @MainActor in self?.fadeComposer() } }
         localMonitor = NSEvent.addLocalMonitorForEvents(matching:[.leftMouseDown,.rightMouseDown]) { [weak self] event in
-            if let self,event.window !== self.sessionWindow { self.fadeComposer() }
+            if let self,event.window !== self.sessionWindow,event.window?.level != .statusBar { self.fadeComposer() }
             return event
         }
         #endif
@@ -120,7 +127,7 @@ final class GeminiWebTranscriber: NSObject, WKNavigationDelegate, WKUIDelegate, 
             }
         })
     }
-    func windowDidResignKey(_ notification: Notification) { fadeComposer() }
+    func windowDidResignKey(_ notification: Notification) { if NSApp.currentEvent?.window?.level != .statusBar { fadeComposer() } }
     private func prepareHiddenCapture() {
         if !composerPresented {
             prepareCompact();sessionWindow.alphaValue=0;sessionWindow.ignoresMouseEvents=true
@@ -172,21 +179,8 @@ final class GeminiWebTranscriber: NSObject, WKNavigationDelegate, WKUIDelegate, 
 
     #if DEBUG
     // 3 October 2026, 22:20 CEST: the verification build substitutes synthetic audio without opening a real microphone.
-    func installVerificationAudio(_ audio:Data) {
-        let controller=webView.configuration.userContentController,scripts=controller.userScripts
-        fputs("Fn install scripts begin\n",stderr);fflush(stderr)
-        controller.removeAllUserScripts()
-        let script="""
-        navigator.mediaDevices.getUserMedia=async()=>{const bytes=Uint8Array.from(atob('\(audio.base64EncodedString())'),c=>c.charCodeAt(0));const c=new AudioContext();const b=await c.decodeAudioData(bytes.buffer);const d=c.createMediaStreamDestination();const source=c.createBufferSource();source.buffer=b;source.connect(d);await c.resume();source.start();d.stream.getAudioTracks().forEach(t=>t.addEventListener('ended',()=>c.close(),{once:true}));return d.stream;};
-        """
-        fputs("Fn install generated audio\n",stderr);fflush(stderr)
-        controller.addUserScript(WKUserScript(source:script,injectionTime:.atDocumentStart,forMainFrameOnly:true))
-        scripts.forEach { controller.addUserScript($0) }
-        fputs("Fn install reload\n",stderr);fflush(stderr)
-        webView.reload()
-        fputs("Fn install parking\n",stderr);fflush(stderr)
-        prepareHiddenCapture()
-        fputs("Fn install parked\n",stderr);fflush(stderr)
+    func installVerificationAudio(_ audio:Data) async throws {
+        _ = try await webView.callAsyncJavaScript("window.ZenRayVerificationAudio=audio;return true",arguments:["audio":audio.base64EncodedString()],in:nil,in:.page)
     }
     func verificationState() async throws -> [String:Any] {
         var result=(try await webView.evaluateJavaScript("({ready:!!window.ZenRayComposer&&!!window.ZenRayGemini?.ready(),draft:document.querySelector('[role=\"textbox\"][contenteditable=\"true\"]')?.innerText||''})")) as? [String:Any] ?? [:]

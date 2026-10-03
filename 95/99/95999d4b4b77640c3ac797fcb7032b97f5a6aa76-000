@@ -10,18 +10,16 @@ import AppKit
         Task { @MainActor in
             do {
                 fputs("Fn probe actor\n",stderr);fflush(stderr)
+                GeminiWebTranscriber.verificationScript="navigator.mediaDevices.getUserMedia=async()=>{const bytes=Uint8Array.from(atob(window.ZenRayVerificationAudio),c=>c.charCodeAt(0));const context=new AudioContext();const buffer=await context.decodeAudioData(bytes.buffer);const destination=context.createMediaStreamDestination();const source=context.createBufferSource();source.buffer=buffer;source.connect(destination);await context.resume();source.start();return destination.stream;};"
                 let web=GeminiWebTranscriber()
                 fputs("Fn probe initialized\n",stderr);fflush(stderr)
                 let audio=try Data(contentsOf:URL(fileURLWithPath:CommandLine.arguments[1]))
-                fputs("Fn probe audio read\n",stderr);fflush(stderr)
-                web.installVerificationAudio(audio)
-                fputs("Fn probe audio installed\n",stderr);fflush(stderr)
-                var states=[String]();web.onLiveState={ states.append($0) }
                 let deadline=Date().addingTimeInterval(35)
                 while Date()<deadline {
                     if let state=try? await web.verificationState(),state["ready"] as? Bool==true { fputs("Fn probe ready\n",stderr);fflush(stderr);break }
                     try await Task.sleep(nanoseconds:200_000_000)
                 }
+                try await web.installVerificationAudio(audio)
                 let clipboard=NSPasteboard.general
                 let previous=clipboard.pasteboardItems?.map { item in item.types.compactMap { type in item.data(forType:type).map{(type,$0)} } } ?? []
                 web.pressFn()
