@@ -9,6 +9,9 @@ final class GeminiWebTranscriber: NSObject, WKNavigationDelegate, WKUIDelegate, 
         static let readyTimeout: TimeInterval = 30
         static let responseTimeout: TimeInterval = 45
         static let maximumAudioBytes = 64 * 1024 * 1024
+        static let capsuleWidth: CGFloat = 860
+        static let capsuleMinimumHeight: CGFloat = 76
+        static let capsuleMaximumHeight: CGFloat = 250
         static let sessionID = UUID(uuidString: "72BB7BB9-9B1C-4DF7-BC76-6F8C4BE422D1")!
     }
 
@@ -30,6 +33,7 @@ final class GeminiWebTranscriber: NSObject, WKNavigationDelegate, WKUIDelegate, 
         configuration.websiteDataStore = WKWebsiteDataStore(forIdentifier: Settings.sessionID)
         configuration.mediaTypesRequiringUserActionForPlayback = []
         configuration.userContentController.add(self, name: "dictation")
+        configuration.userContentController.add(self,name:"composerLayout")
         do {
             guard let url = Bundle.main.url(forResource: "GeminiBridge", withExtension: "js") else {
                 throw TranscriptionError.geminiUnavailable("The Gemini bridge resource is missing. Rebuild ZenRayDictate.")
@@ -42,11 +46,17 @@ final class GeminiWebTranscriber: NSObject, WKNavigationDelegate, WKUIDelegate, 
         webView = WKWebView(frame: NSRect(x: 0, y: 0, width: 1000, height: 740), configuration: configuration)
         webView.navigationDelegate = self
         webView.uiDelegate = self
-        sessionWindow = NSPanel(contentRect:NSRect(x:0,y:0,width:860,height:230),styleMask:[.titled,.closable,.resizable,.nonactivatingPanel],backing:.buffered,defer:false)
+        sessionWindow = NSPanel(contentRect:NSRect(x:0,y:0,width:Settings.capsuleWidth,height:Settings.capsuleMinimumHeight),styleMask:[.borderless,.nonactivatingPanel],backing:.buffered,defer:false)
+        // 3 October 2026, 21:42 CEST: the transparent nonactivating panel contains only the website capsule.
+        sessionWindow.isOpaque = false
+        sessionWindow.backgroundColor = .clear
+        webView.underPageBackgroundColor = .clear
+        webView.setValue(false,forKey:"drawsBackground")
+        sessionWindow.hasShadow = true
         sessionWindow.level = .floating
         (sessionWindow as? NSPanel)?.hidesOnDeactivate = false
         sessionWindow.collectionBehavior = [.canJoinAllSpaces,.fullScreenAuxiliary]
-        sessionWindow.contentMinSize = NSSize(width:520,height:200)
+        sessionWindow.contentMinSize = NSSize(width:520,height:Settings.capsuleMinimumHeight)
         sessionWindow.title = "ZenRayDictate · Gemini session"
         sessionWindow.isReleasedWhenClosed = false
         sessionWindow.contentView = webView
@@ -59,7 +69,9 @@ final class GeminiWebTranscriber: NSObject, WKNavigationDelegate, WKUIDelegate, 
         compact = true
         webView.evaluateJavaScript("window.ZenRayComposer?.setCompact(true)")
         sessionWindow.title = "ZenRayDictate · Gemini"
-        sessionWindow.setContentSize(NSSize(width:860,height:230))
+        sessionWindow.styleMask = [.borderless,.nonactivatingPanel]
+        sessionWindow.backgroundColor = .clear
+        sessionWindow.setContentSize(NSSize(width:Settings.capsuleWidth,height:Settings.capsuleMinimumHeight))
         if let screen = NSScreen.main { let frame=screen.visibleFrame; sessionWindow.setFrameOrigin(NSPoint(x:frame.midX-430,y:frame.minY+22)) }
         if activate { sessionWindow.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps:true) }
         else { sessionWindow.orderFrontRegardless() }
@@ -96,6 +108,8 @@ final class GeminiWebTranscriber: NSObject, WKNavigationDelegate, WKUIDelegate, 
 
     func showSession() {
         compact = false
+        sessionWindow.styleMask = [.titled,.closable,.resizable,.nonactivatingPanel]
+        sessionWindow.backgroundColor = .windowBackgroundColor
         webView.evaluateJavaScript("window.ZenRayComposer?.setCompact(false)")
         sessionWindow.title = "ZenRayDictate · Gemini session"
         sessionWindow.setContentSize(NSSize(width:1000,height:740)); sessionWindow.center()
@@ -177,6 +191,14 @@ final class GeminiWebTranscriber: NSObject, WKNavigationDelegate, WKUIDelegate, 
     }
 
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        if message.name == "composerLayout" {
+            guard compact, message.frameInfo.isMainFrame, message.frameInfo.securityOrigin.host == Settings.url.host,
+                  let payload=message.body as? [String:Any],let height=payload["height"] as? Double,height.isFinite else { return }
+            let old=sessionWindow.frame
+            let size=NSSize(width:Settings.capsuleWidth,height:min(Settings.capsuleMaximumHeight,max(Settings.capsuleMinimumHeight,height)))
+            sessionWindow.setFrame(NSRect(origin:old.origin,size:size),display:true)
+            return
+        }
         guard message.frameInfo.isMainFrame, message.frameInfo.securityOrigin.host == Settings.url.host,
               let payload = message.body as? [String: Any], let id = payload["id"] as? String, id == requestID else { return }
         if let error = payload["error"] as? String {

@@ -3,17 +3,74 @@
   if (location.hostname !== 'gemini.google.com') return;
   const settings = { composer: 'input-container', editor: '[role="textbox"][contenteditable="true"]' };
   let compact = false;
+  const waveformSettings = { bars: 64, height: 44, gain: 7, smoothing: 0.2, minimumBar: 3, color: '#b6b6ba' };
+  let waveform = null, audioContext = null, source = null, frame = null;
+  let levels = Array(waveformSettings.bars).fill(0);
+  let smoothing = 0;
+  function stopWaveform() {
+    if (frame) cancelAnimationFrame(frame); frame = null;
+    source?.disconnect(); source = null;
+    audioContext?.close().catch(()=>{}); audioContext = null;
+    smoothing = 0; levels.fill(0);
+    waveform?.remove(); waveform = null;
+  }
+  function observeStream(stream) {
+    if (!compact || !stream.getAudioTracks().length) return;
+    stopWaveform();
+    const root = document.querySelector(settings.composer);
+    if (!root) return;
+    waveform = document.createElement('canvas');
+    waveform.className = 'zenray-waveform'; waveform.setAttribute('aria-label','Live microphone waveform');
+    waveform.style.cssText = 'display:block;width:calc(100% - 36px);height:44px;margin:0 18px 8px;pointer-events:none;';
+    const container = root.querySelector('.input-area') || root;
+    container.append(waveform);
+    audioContext = new AudioContext();
+    source = audioContext.createMediaStreamSource(stream);
+    const analyser = audioContext.createAnalyser(); analyser.fftSize = 256;
+    source.connect(analyser); audioContext.resume().catch(()=>{});
+    const samples = new Float32Array(analyser.fftSize);
+    const context = waveform.getContext('2d');
+    function draw() {
+      if (!waveform || !audioContext) return;
+      if (!stream.active || stream.getAudioTracks().every(track=>track.readyState==='ended')) { stopWaveform(); return; }
+      analyser.getFloatTimeDomainData(samples);
+      let sum=0; for(const sample of samples) sum+=sample*sample;
+      const level=Math.min(1,Math.sqrt(sum/samples.length)*waveformSettings.gain);
+      smoothing+=(level-smoothing)*waveformSettings.smoothing;
+      levels.shift(); levels.push(smoothing);
+      const width=waveform.clientWidth, height=waveformSettings.height, ratio=devicePixelRatio || 1;
+      if(waveform.width!==Math.round(width*ratio)){waveform.width=Math.round(width*ratio);waveform.height=Math.round(height*ratio);}
+      context.setTransform(ratio,0,0,ratio,0,0);context.clearRect(0,0,width,height);
+      context.fillStyle=waveformSettings.color;
+      const gap=width/waveformSettings.bars, barWidth=Math.min(4,gap*0.45);
+      for(let i=0;i<levels.length;i++){
+        const barHeight=waveformSettings.minimumBar+levels[i]*(height-8);
+        context.beginPath();context.roundRect(i*gap,height/2-barHeight/2,barWidth,barHeight,barWidth/2);context.fill();
+      }
+      frame=requestAnimationFrame(draw);
+    }
+    for(const track of stream.getAudioTracks()) track.addEventListener('ended',stopWaveform,{once:true});
+    draw();
+  }
   const style = document.createElement('style');
   style.textContent = `
     html[data-zenray-compact] [data-zenray-hidden] { display:none!important; }
-    html[data-zenray-compact], html[data-zenray-compact] body { margin:0!important; padding:0!important; overflow:hidden!important; }
-    html[data-zenray-compact] [data-zenray-path] { position:static!important; transform:none!important; padding:0!important; margin:0!important; min-height:0!important; height:auto!important; width:100%!important; max-width:none!important; overflow:visible!important; }
-    html[data-zenray-compact] [data-zenray-composer] { position:fixed!important; inset:12px!important; width:auto!important; max-width:none!important; margin:0!important; z-index:100!important; }
+    html[data-zenray-compact], html[data-zenray-compact] body { margin:0!important; padding:0!important; overflow:hidden!important; background:transparent!important; }
+    html[data-zenray-compact] [data-zenray-path] { position:static!important; transform:none!important; padding:0!important; margin:0!important; min-height:0!important; height:auto!important; width:100%!important; max-width:none!important; overflow:visible!important; background:transparent!important; }
+    html[data-zenray-compact] [data-zenray-composer] { position:fixed!important; top:6px!important; left:6px!important; right:6px!important; bottom:auto!important; width:auto!important; max-width:none!important; height:auto!important; margin:0!important; z-index:100!important; }
     html[data-zenray-compact] [data-zenray-composer] .input-area-container { margin:0!important; width:100%!important; max-width:none!important; }
     html[data-zenray-compact] [data-zenray-composer] rich-textarea .ql-editor { max-height:145px!important; overflow-y:auto!important; }
+    html[data-zenray-compact] [data-zenray-composer] .input-area-container > p { display:none!important; }
     html[data-zenray-compact] .cdk-overlay-container { position:fixed!important; z-index:1000!important; }
   `;
-  let previousRoot = null;
+  let previousRoot = null, lastHeight = 0;
+  const resize = new ResizeObserver(()=>{
+    if (!compact) return;
+    const area=document.querySelector(settings.composer+' .input-area');
+    if(!area)return;
+    const height=Math.ceil(area.getBoundingClientRect().height+12);
+    if(height!==lastHeight){lastHeight=height;window.webkit?.messageHandlers?.composerLayout?.postMessage({height});}
+  });
   function apply() {
     if (!document.documentElement) return;
     if (!style.isConnected) (document.head || document.documentElement).append(style);
@@ -28,7 +85,10 @@
       el.removeAttribute('data-zenray-hidden'); el.removeAttribute('data-zenray-path'); el.removeAttribute('data-zenray-composer');
     });
     previousRoot = root;
+    resize.disconnect(); const area=root.querySelector('.input-area'); if(area)resize.observe(area);
     root.setAttribute('data-zenray-composer','');
+    const legal=root.querySelector('a[href*="policies.google.com"]');
+    if(legal){ let footer=legal; while(footer.parentElement && footer.parentElement!==root && !footer.parentElement.querySelector(settings.editor)){footer=footer.parentElement;} footer.setAttribute('data-zenray-hidden',''); }
     let child = root;
     while (child.parentElement && child.parentElement !== document.documentElement) {
       const parent = child.parentElement;
@@ -40,15 +100,17 @@
     }
   }
   window.ZenRayComposer = {
+    observeStream,
     setCompact(value) { compact = Boolean(value); previousRoot = null; apply(); },
     microphone(stop = false) {
       const pattern = stop ? /^(Arrêter|Stop|Terminer|Done)(?:\s|$)/i : /^(Dicter|Dictate|Use microphone|Microphone)(?:\s|$)/i;
       const button = [...document.querySelectorAll('button[aria-label]')].find(el=>!el.disabled&&el.getClientRects().length&&pattern.test(el.getAttribute('aria-label')));
       if (!button) throw new Error(stop ? 'Gemini microphone is not recording.' : 'Gemini microphone is unavailable. Open the full session to check access.');
       button.click();
+      if(stop) stopWaveform();
     },
-    cancel() { const button = [...document.querySelectorAll('button[aria-label]')].find(el=>/^(Arrêter|Stop|Terminer|Done)(?:\s|$)/i.test(el.getAttribute('aria-label'))); button?.click(); },
-    state() { const root=document.querySelector(settings.composer); return {origin:location.origin,compact:document.documentElement.hasAttribute('data-zenray-compact'),composer:root?.tagName,editor:!!root?.querySelector(settings.editor)}; }
+    cancel() { const button = [...document.querySelectorAll('button[aria-label]')].find(el=>/^(Arrêter|Stop|Terminer|Done)(?:\s|$)/i.test(el.getAttribute('aria-label'))); button?.click(); stopWaveform(); },
+    state() { const root=document.querySelector(settings.composer); return {origin:location.origin,compact:document.documentElement.hasAttribute('data-zenray-compact'),composer:root?.tagName,editor:!!root?.querySelector(settings.editor),waveform:!!waveform,audioContext:audioContext?.state,level:smoothing}; }
   };
   new MutationObserver(apply).observe(document,{childList:true,subtree:true});
   apply();

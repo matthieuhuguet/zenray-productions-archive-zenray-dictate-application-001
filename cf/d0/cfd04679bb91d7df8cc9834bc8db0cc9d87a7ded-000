@@ -36,7 +36,7 @@ final class Probe: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessage
                 sent = true; timer.invalidate()
                 // 3 October 2026, 21:32 CEST: inspect only the composer structure, excluding chat contents.
                 if CommandLine.arguments[1] == "--inspect" {
-                    self.web.evaluateJavaScript("window.ZenRayComposer.setCompact(true); JSON.stringify({state:window.ZenRayComposer.state(),structure:(()=>{let e=document.querySelector('[role= textbox][contenteditable=true]');let a=[];while(e&&a.length<12){a.push({tag:e.tagName,classes:e.className,height:e.getBoundingClientRect().height});e=e.parentElement;}return a;})()})") { value,error in print(value ?? error as Any); fflush(stdout); exit(error == nil ? 0 : 1) }
+                    self.web.evaluateJavaScript("window.ZenRayComposer.setCompact(true); JSON.stringify({state:window.ZenRayComposer.state(),footer:(()=>{let e=document.querySelector('input-container a[href*=\"policies.google.com\"]');let a=[];while(e&&a.length<6){a.push({tag:e.tagName,classes:e.className});e=e.parentElement;}return a;})(),structure:(()=>{let e=document.querySelector('[role= textbox][contenteditable=true]');let a=[];while(e&&a.length<12){a.push({tag:e.tagName,classes:e.className,height:e.getBoundingClientRect().height});e=e.parentElement;}return a;})()})") { value,error in print(value ?? error as Any); fflush(stdout); exit(error == nil ? 0 : 1) }
                     return
                 }
                 if CommandLine.arguments[1] == "--rewrite" {
