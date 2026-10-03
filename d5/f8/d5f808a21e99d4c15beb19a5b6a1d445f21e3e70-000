@@ -37,5 +37,19 @@
     "Wrote precise V2 patch notes covering the caret fix, layout, controls, transcription, and retry memory",
     "Verified the V2 runtime window at 860 by 140 points and buttons at 38 by 38 points"
   ],
-  "next": "Use the independent composer normally while keeping the Codex chat open separately."
+  "next": "Use the independent composer normally while keeping the Codex chat open separately.",
+  "currentWork": {
+    "updatedAt": "3 October 2026",
+    "objective": "Gemini website backend, native capsule, Wispr-style dictation library and Assets cloud mapping",
+    "sessionId": "01a10202-a5c2-7942-9ec6-be571d28506f",
+    "status": "verification",
+    "verified": [
+      "Gemini web dictation using synthetic witness audio",
+      "Sequential Gemini dictation and cleanup in the same app web session",
+      "Eight library tests",
+      "Bridge draft and origin rejection checks",
+      "Signed bundle and native composer invariants"
+    ],
+    "next": "Verify native media import, then archive and re-read the complete project mapping."
+  }
 }
