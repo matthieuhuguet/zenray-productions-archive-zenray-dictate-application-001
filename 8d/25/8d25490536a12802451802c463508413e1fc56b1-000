@@ -3,6 +3,13 @@ import Carbon.HIToolbox
 import SwiftUI
 import UniformTypeIdentifiers
 
+// 3 October 2026, 19:52 CEST: font families are defined once for the app library.
+enum DictationTypography {
+    static let sans = "InterVariable"
+    static let mono = "AnthropicMono"
+    static let numbers = "AnthropicSerif"
+}
+
 // 3 October 2026, 16:10 CEST: every mode, vocabulary rule and history operation is accessible in the app.
 @MainActor
 final class LibraryWindow {
@@ -145,7 +152,7 @@ private struct LibraryView: View {
                 }.padding() }.tabItem { Text("Settings") }
                 VStack(alignment:.leading) {
                     Text("Edit custom prompts, tone and application bundle IDs. useScreenContext opts into reading the focused text field for spelling. Gemini handles cloud formatting; local mode returns dictionary-corrected text.")
-                    TextEditor(text:$model.modesJSON).font(.custom("AnthropicMono",size:13))
+                    TextEditor(text:$model.modesJSON).font(.custom(DictationTypography.mono,size:13))
                 }.padding().tabItem { Text("Modes") }
                 VStack {
                     HStack { Button("Import CSV") { model.importCSV() }; Text("CSV columns: spoken,written. Snippets match the whole utterance.") }
@@ -153,13 +160,13 @@ private struct LibraryView: View {
                         VStack { Text("Vocabulary"); TextEditor(text:$model.vocabularyJSON) }
                         VStack { Text("Replacements"); TextEditor(text:$model.replacementsJSON) }
                         VStack { Text("Voice snippets"); TextEditor(text:$model.snippetsJSON) }
-                    }.font(.custom("AnthropicMono",size:13))
+                    }.font(.custom(DictationTypography.mono,size:13))
                 }.padding().tabItem { Text("Vocabulary") }
                 VStack {
                     HStack { Button("Import audio or video") { model.importMedia() }; Text("Drop audio/video here. Audio is not kept by default.") }
                     HSplitView {
                         List(model.records,selection:$model.selectedID) { record in
-                            VStack(alignment:.leading) { Text(record.text).lineLimit(2); Text(record.date.formatted() + " · " + record.provider + " · " + record.modeID).font(.caption) }.tag(record.id)
+                            VStack(alignment:.leading) { Text(record.text).lineLimit(2); Text(record.date.formatted(.dateTime.day().month(.wide).year().hour().minute().locale(Locale(identifier:"en_GB"))) + " · " + record.provider + " · " + record.modeID).font(.custom(DictationTypography.numbers,size:12)) }.tag(record.id)
                         }.frame(minWidth:250)
                         VStack {
                             TextEditor(text:$model.editedText)
@@ -171,6 +178,6 @@ private struct LibraryView: View {
                 }.padding().onDrop(of:[UTType.fileURL],isTargeted:nil,perform:model.drop).tabItem { Text("History") }
             }
             HStack { Text(model.message).foregroundStyle(.secondary); Spacer(); Button("Save settings, modes and vocabulary") { model.save() } }.padding()
-        }.font(.custom("InterVariable",size:14)).frame(minWidth:740,minHeight:560)
+        }.font(.custom(DictationTypography.sans,size:14)).frame(minWidth:740,minHeight:560)
     }
 }

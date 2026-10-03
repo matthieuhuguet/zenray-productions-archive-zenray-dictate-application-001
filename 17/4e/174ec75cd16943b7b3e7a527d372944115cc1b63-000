@@ -93,7 +93,7 @@ struct InsertionTarget {
         if let element, let before = previousValue {
             var value: CFTypeRef?
             if AXUIElementCopyAttributeValue(element,kAXValueAttribute as CFString,&value) == .success,
-               let after = value as? String, after == before, !text.isEmpty {
+               let after = value as? String, after == before, !text.isEmpty, text != selectedText {
                 throw TranscriptionError.geminiUnavailable("The field did not accept the paste. Copy the saved transcript from History.")
             }
         }

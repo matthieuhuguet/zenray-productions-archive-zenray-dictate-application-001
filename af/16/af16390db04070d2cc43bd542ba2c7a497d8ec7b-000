@@ -20,7 +20,7 @@ final class DictationCapsule {
         background.wantsLayer = true; background.layer?.cornerRadius = Tokens.height / 2
         let stack = NSStackView(views:[label,waveform]); stack.orientation = .vertical
         stack.spacing = 3; stack.translatesAutoresizingMaskIntoConstraints = false
-        label.font = NSFont(name:"InterVariable",size:12) ?? .systemFont(ofSize:12); label.alignment = .center
+        label.font = NSFont(name:DictationTypography.sans,size:12) ?? .systemFont(ofSize:12); label.alignment = .center
         waveform.translatesAutoresizingMaskIntoConstraints = false
         background.addSubview(stack); panel.contentView = background
         NSLayoutConstraint.activate([stack.leadingAnchor.constraint(equalTo:background.leadingAnchor,constant:18),stack.trailingAnchor.constraint(equalTo:background.trailingAnchor,constant:-18),stack.centerYAnchor.constraint(equalTo:background.centerYAnchor),waveform.heightAnchor.constraint(equalToConstant:18)])

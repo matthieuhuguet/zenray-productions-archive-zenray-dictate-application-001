@@ -100,8 +100,18 @@ final class DictationLibrary {
     init(directory: URL? = nil) {
         self.directory = directory ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("ZenRayDictate/Library", isDirectory: true)
         file = self.directory.appendingPathComponent("Library.json")
-        if let data = try? Data(contentsOf: file), let loaded = try? JSONDecoder().decode(LibraryDocument.self, from: data) { document = loaded }
-        else { document = LibraryDocument() }
+        document = LibraryDocument()
+        if FileManager.default.fileExists(atPath:file.path) {
+            do { document = try JSONDecoder().decode(LibraryDocument.self,from:Data(contentsOf:file)) }
+            catch {
+                let recovery = self.directory.appendingPathComponent("Recovery",isDirectory:true)
+                do {
+                    try FileManager.default.createDirectory(at:recovery,withIntermediateDirectories:true)
+                    try FileManager.default.copyItem(at:file,to:recovery.appendingPathComponent("Library-" + UUID().uuidString + ".json"))
+                    document.lastError = "The library could not be read. Its original file is preserved in Recovery. " + error.localizedDescription
+                } catch { document.lastError = "The library could not be read or backed up. Do not save settings before recovering Library.json. " + error.localizedDescription }
+            }
+        }
     }
     func save() throws {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
