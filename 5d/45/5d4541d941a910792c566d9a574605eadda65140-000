@@ -23,6 +23,11 @@
     waveform.className = 'zenray-waveform'; waveform.setAttribute('aria-label','Live microphone waveform');
     waveform.style.cssText = 'display:block;width:calc(100% - 36px);height:44px;margin:0 18px 8px;pointer-events:none;';
     const container = root.querySelector('.input-area') || root;
+    waveform.style.flex = '0 0 44px';
+    container.style.setProperty('display','flex','important');
+    container.style.setProperty('flex-direction','column','important');
+    const field=root.querySelector('.text-input-field');
+    if(field){ const theme=getComputedStyle(field);container.style.backgroundColor=theme.backgroundColor;container.style.borderRadius=theme.borderRadius; }
     container.append(waveform);
     audioContext = new AudioContext();
     source = audioContext.createMediaStreamSource(stream);
