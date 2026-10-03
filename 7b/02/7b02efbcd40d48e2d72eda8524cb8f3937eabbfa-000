@@ -47,11 +47,12 @@
       if (!active) return;
       const request = active;
       if (request.startedAt && !request.stopped) button(settings.stopLabels)?.click();
+      if (request.kind === "rewrite") button(/^(Arrêter la réponse|Stop response|Stop generating)/i)?.click();
       await clean(request);
     },
     rewrite: async payload => {
       if (active) throw new Error('Gemini is busy.');
-      const request = { id: payload.id, cancelled: false };
+      const request = { id: payload.id, cancelled: false, kind: "rewrite" };
       active = request;
       const responses = () => [...document.querySelectorAll('message-content .markdown')];
       try {

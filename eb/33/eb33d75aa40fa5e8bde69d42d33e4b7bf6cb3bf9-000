@@ -118,7 +118,7 @@ final class GeminiWebTranscriber: NSObject, WKNavigationDelegate, WKUIDelegate, 
             pending.resume(with:result)
         }
         if case .failure = result {
-            webView.evaluateJavaScript("window.ZenRayGemini?.cancel()") { _,_ in complete() }
+            webView.callAsyncJavaScript("await window.ZenRayGemini?.cancel()",arguments:[:],in:nil,in:.page) { _ in complete() }
         } else { complete() }
     }
 
