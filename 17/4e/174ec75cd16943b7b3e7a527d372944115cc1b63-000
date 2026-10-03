@@ -67,6 +67,11 @@ struct InsertionTarget {
                       let currentRange, CFEqual(currentRange,selectedRange) else { throw TranscriptionError.geminiUnavailable("The cursor or selection moved; transcript saved in History.") }
             }
         }
+        var previousValue: String?
+        if let element {
+            var value: CFTypeRef?
+            if AXUIElementCopyAttributeValue(element,kAXValueAttribute as CFString,&value) == .success { previousValue = value as? String }
+        }
         let clipboard = NSPasteboard.general
         let previous = clipboard.pasteboardItems?.map { item in
             item.types.compactMap { type in item.data(forType: type).map { (type,$0) } }
@@ -84,6 +89,13 @@ struct InsertionTarget {
             clipboard.clearContents()
             let items = previous.map { formats -> NSPasteboardItem in let item = NSPasteboardItem(); for (type,data) in formats { item.setData(data, forType: type) }; return item }
             clipboard.writeObjects(items)
+        }
+        if let element, let before = previousValue {
+            var value: CFTypeRef?
+            if AXUIElementCopyAttributeValue(element,kAXValueAttribute as CFString,&value) == .success,
+               let after = value as? String, after == before, !text.isEmpty {
+                throw TranscriptionError.geminiUnavailable("The field did not accept the paste. Copy the saved transcript from History.")
+            }
         }
     }
 }
