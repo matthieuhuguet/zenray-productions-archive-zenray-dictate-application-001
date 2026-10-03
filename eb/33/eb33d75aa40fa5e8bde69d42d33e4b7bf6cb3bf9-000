@@ -46,7 +46,7 @@ final class GeminiWebTranscriber: NSObject, WKNavigationDelegate, WKUIDelegate, 
         webView = WKWebView(frame: NSRect(x: 0, y: 0, width: 1000, height: 740), configuration: configuration)
         webView.navigationDelegate = self
         webView.uiDelegate = self
-        sessionWindow = NSPanel(contentRect:NSRect(x:0,y:0,width:Settings.capsuleWidth,height:Settings.capsuleMinimumHeight),styleMask:[.borderless,.nonactivatingPanel],backing:.buffered,defer:false)
+        sessionWindow = GeminiComposerPanel(contentRect:NSRect(x:0,y:0,width:Settings.capsuleWidth,height:Settings.capsuleMinimumHeight),styleMask:[.borderless,.nonactivatingPanel],backing:.buffered,defer:false)
         // 3 October 2026, 21:42 CEST: the transparent nonactivating panel contains only the website capsule.
         sessionWindow.isOpaque = false
         sessionWindow.backgroundColor = .clear
@@ -240,4 +240,10 @@ final class GeminiWebTranscriber: NSObject, WKNavigationDelegate, WKUIDelegate, 
         // 3 October 2026, 15:52 CEST: the bridge supplies saved audio; other media prompts remain user-controlled.
         decisionHandler(origin.host == Settings.url.host && type == .microphone ? .prompt : .deny)
     }
+}
+
+// 3 October 2026, 21:45 CEST: borderless composition still accepts keyboard focus when explicitly clicked.
+private final class GeminiComposerPanel: NSPanel {
+    override var canBecomeKey: Bool { true }
+    override var canBecomeMain: Bool { false }
 }
