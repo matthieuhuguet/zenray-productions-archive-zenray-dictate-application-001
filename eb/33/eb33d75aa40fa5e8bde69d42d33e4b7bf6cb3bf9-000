@@ -71,11 +71,13 @@ final class GeminiWebTranscriber: NSObject, WKNavigationDelegate, WKUIDelegate, 
         sessionWindow.isReleasedWhenClosed = false
         sessionWindow.contentView = webView
         sessionWindow.delegate = self
+        #if !DEBUG
         outsideMonitor = NSEvent.addGlobalMonitorForEvents(matching:[.leftMouseDown,.rightMouseDown]) { [weak self] _ in Task { @MainActor in self?.fadeComposer() } }
         localMonitor = NSEvent.addLocalMonitorForEvents(matching:[.leftMouseDown,.rightMouseDown]) { [weak self] event in
             if let self,event.window !== self.sessionWindow { self.fadeComposer() }
             return event
         }
+        #endif
         sessionWindow.center()
         webView.load(URLRequest(url: Settings.url))
     }
