@@ -95,6 +95,7 @@ final class DictationCoordinator {
     func importMedia(_ url: URL) {
         guard state == .idle else { return }
         target = nil; command = false; mode = library.mode(for:"")
+        state = .processing; capsule.show("Importing audio")
         work = Task {
             do {
                 let asset = AVURLAsset(url:url)
@@ -143,11 +144,14 @@ final class DictationCoordinator {
                     do { try await destination.insert(output,restoreDelay:library.document.preferences.clipboardRestoreDelay); inserted = true }
                     catch { insertionError = error }
                 }
+                if !inserted && !library.document.preferences.keepHistory {
+                    NSPasteboard.general.clearContents(); NSPasteboard.general.setString(output,forType:.string)
+                }
                 try library.record(raw:result.text,text:output,provider:result.provider,mode:selected.id,application:destination?.application.bundleIdentifier ?? "Imported file",audioURL:audio,inserted:inserted)
                 if ownsAudio { try FileManager.default.removeItem(at:audio) }
                 pendingURL = nil; state = .idle; command = false; handsFree = false; onUpdate?()
                 if let insertionError { fail(insertionError.localizedDescription) }
-                else { capsule.show(inserted ? "Inserted · " + result.provider : "Saved to History · " + result.provider); dismissLater() }
+                else { capsule.show(inserted ? "Inserted · " + result.provider : (library.document.preferences.keepHistory ? "Saved to History · " : "Copied · ") + result.provider); dismissLater() }
             } catch { state = .idle; command = false; fail(error.localizedDescription + " Recording saved for retry.") }
         }
     }

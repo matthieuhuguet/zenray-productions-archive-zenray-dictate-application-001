@@ -12,6 +12,7 @@ let package = Package(
             linkerSettings: [
                 .linkedFramework("AVFoundation")
             ]
-        )
+        ),
+        .testTarget(name: "ZenRayDictateTests", dependencies: ["ZenRayDictate"], path: "Tests/ZenRayDictateTests")
     ]
 )

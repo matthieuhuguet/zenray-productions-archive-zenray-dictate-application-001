@@ -62,7 +62,11 @@
         if (picker && payload.model && !picker.innerText.includes(payload.model)) throw new Error('Choose ' + payload.model + ' in the Gemini session before processing this mode.');
         field.focus();
         document.execCommand('insertText', false, payload.instruction + '\n\nInput:\n' + payload.text);
-        const send = button(/^(Envoyer|Send|Submit)(?:\s|$)/i);
+        let send;
+        for (let attempt = 0; attempt < 40 && !send; attempt++) {
+          await sleep(settings.pollMs);
+          send = button(/^(Envoyer|Send|Submit)(?:\s|$)/i);
+        }
         if (!send) throw new Error('Gemini Send control is unavailable.');
         send.click();
         const deadline = Date.now() + 85000;
@@ -78,7 +82,7 @@
           await sleep(settings.pollMs);
         }
         if (!request.cancelled) throw new Error('Gemini did not complete its text response.');
-      } catch (error) { if (!request.cancelled) report(request, { error: error.message }); }
+      } catch (error) { const notify = !request.cancelled; await clean(request); if (notify) report(request, { error: error.message }); }
       finally { await clean(request); }
     },
     transcribe: async payload => {
@@ -124,7 +128,7 @@
         }
         if (!request.cancelled) throw new Error('Gemini returned no completed transcript; saved recording is available for retry.');
       } catch (error) {
-        if (!request.cancelled) report(request, { error: error.message });
+        const notify = !request.cancelled; await clean(request); if (notify) report(request, { error: error.message });
       } finally { await clean(request); }
     },
   };

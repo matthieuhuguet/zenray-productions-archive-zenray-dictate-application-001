@@ -110,15 +110,19 @@ private struct LibraryView: View {
                     Picker("Active mode",selection:$model.preferences.activeMode) { ForEach(model.modes) { Text($0.name).tag($0.id) } }
                     TextField("Language (auto, fr, en, ja…)",text:$model.preferences.language)
                     TextField("Gemini model in the session",text:$model.preferences.model)
+                    TextField("Whisper executable",text:$model.preferences.whisperExecutable)
+                    TextField("Whisper model",text:$model.preferences.whisperModel)
+                    TextField("Parakeet executable",text:$model.preferences.parakeetExecutable)
+                    TextField("Parakeet model",text:$model.preferences.parakeetModel)
                     TextField("Shortcut key code",value:$model.preferences.shortcutKeyCode,format:.number)
                     TextField("Shortcut modifier mask",value:$model.preferences.shortcutModifiers,format:.number)
                     Text("Default shortcut: Control+D. Fn+Space or double Fn enables hands-free. Control+Shift+D enables Command Mode. Set macOS ‘Press 🌐 key to’ to ‘Do Nothing’. The system shortcut setting remains yours.").font(.caption)
                     Button("Gemini session / Sign in") { TranscriptionPipeline.showGemini() }
-                    Button("Open the single data folder") { NSWorkspace.shared.open(DictationLibrary.shared.directory) }
+                    Button("Open the single data folder") { try? FileManager.default.createDirectory(at:DictationLibrary.shared.directory,withIntermediateDirectories:true); NSWorkspace.shared.open(DictationLibrary.shared.directory) }
                 }.padding().tabItem { Text("Settings") }
                 VStack(alignment:.leading) {
                     Text("Edit custom prompts, tone and application bundle IDs. useScreenContext opts into reading the focused text field for spelling. Gemini handles cloud formatting; local mode returns dictionary-corrected text.")
-                    TextEditor(text:$model.modesJSON).font(.system(.body,design:.monospaced))
+                    TextEditor(text:$model.modesJSON).font(.custom("AnthropicMono",size:13))
                 }.padding().tabItem { Text("Modes") }
                 VStack {
                     HStack { Button("Import CSV") { model.importCSV() }; Text("CSV columns: spoken,written. Snippets match the whole utterance.") }
@@ -126,7 +130,7 @@ private struct LibraryView: View {
                         VStack { Text("Vocabulary"); TextEditor(text:$model.vocabularyJSON) }
                         VStack { Text("Replacements"); TextEditor(text:$model.replacementsJSON) }
                         VStack { Text("Voice snippets"); TextEditor(text:$model.snippetsJSON) }
-                    }.font(.system(.body,design:.monospaced))
+                    }.font(.custom("AnthropicMono",size:13))
                 }.padding().tabItem { Text("Vocabulary") }
                 VStack {
                     HStack { Button("Import audio or video") { model.importMedia() }; Text("Drop audio/video here. Audio is not kept by default.") }
@@ -144,6 +148,6 @@ private struct LibraryView: View {
                 }.padding().onDrop(of:[UTType.fileURL],isTargeted:nil,perform:model.drop).tabItem { Text("History") }
             }
             HStack { Text(model.message).foregroundStyle(.secondary); Spacer(); Button("Save settings, modes and vocabulary") { model.save() } }.padding()
-        }.frame(minWidth:740,minHeight:560)
+        }.font(.custom("InterVariable",size:14)).frame(minWidth:740,minHeight:560)
     }
 }

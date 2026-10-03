@@ -84,7 +84,7 @@ final class DictationLibrary {
     func mode(for application: String, override: String? = nil) -> DictationMode {
         if let override, let selected = document.modes.first(where: { $0.id == override }) { return selected }
         return document.modes.first(where: { $0.applications.contains(application) })
-            ?? document.modes.first(where: { $0.id == document.preferences.activeMode }) ?? document.modes[0]
+            ?? document.modes.first(where: { $0.id == document.preferences.activeMode }) ?? document.modes.first ?? LibraryDocument().modes[0]
     }
     func normalize(_ text: String) -> String {
         var result = text
