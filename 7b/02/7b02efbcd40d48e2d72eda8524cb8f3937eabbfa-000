@@ -73,7 +73,7 @@
           if (text !== last) { last = text; changedAt = Date.now(); }
           const generating = button(/^(Arrêter la réponse|Stop response|Stop generating)/i);
           if (last && !generating && Date.now() - changedAt > settings.settleMs) {
-            report(request, { text: last }); return;
+            await clean(request); report(request, { text: last }); return;
           }
           await sleep(settings.pollMs);
         }
@@ -108,7 +108,6 @@
             request.stopped = true;
           }
           if (request.endedAt && request.stopped && lastText && Date.now() - Math.max(changedAt, request.endedAt) >= settings.settleMs && button(settings.microphoneLabels)) {
-            report(request, { text: lastText });
             await clean(request);
             // 3 October 2026, 15:52 CEST: clear only our completed transcript, never an unrelated draft.
             if (editor()?.innerText.trim() === lastText) {
@@ -118,6 +117,7 @@
               selection.removeAllRanges(); selection.addRange(range);
               document.execCommand('delete');
             }
+            report(request, { text: lastText });
             return;
           }
           await sleep(settings.pollMs);

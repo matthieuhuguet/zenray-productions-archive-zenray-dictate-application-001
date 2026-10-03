@@ -43,6 +43,11 @@ final class DictationCoordinator {
             }
         } else { stop() }
     }
+    func fnSpace() {
+        pendingRelease?.cancel(); pendingRelease = nil
+        if state == .recording && !handsFree { handsFree = true; capsule.show("Hands-free · Fn to stop") }
+        else { toggleHandsFree() }
+    }
     func toggleHandsFree() {
         pendingRelease?.cancel()
         if state == .recording { stop() }

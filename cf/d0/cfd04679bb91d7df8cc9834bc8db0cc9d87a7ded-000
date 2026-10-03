@@ -10,7 +10,7 @@ final class Probe: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessage
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = WKWebsiteDataStore(forIdentifier: UUID(uuidString: "72BB7BB9-9B1C-4DF7-BC76-6F8C4BE422D1")!)
         if CommandLine.arguments.count > 1 {
-            let source = try! String(contentsOfFile: "Sources/ZenRayDictate/Resources/GeminiBridge.js")
+            let source = try! String(contentsOfFile: "Sources/ZenRayDictate/Resources/GeminiBridge.js", encoding:.utf8)
             configuration.userContentController.add(self, name: "dictation")
             configuration.userContentController.addUserScript(WKUserScript(source: source, injectionTime: .atDocumentStart, forMainFrameOnly: true))
             configuration.mediaTypesRequiringUserActionForPlayback = []
@@ -28,6 +28,10 @@ final class Probe: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessage
             self.web.evaluateJavaScript("Boolean(window.ZenRayGemini?.ready())") { value,error in
                 guard value as? Bool == true, !sent, CommandLine.arguments.count > 1 else { return }
                 sent = true; timer.invalidate()
+                if CommandLine.arguments[1] == "--rewrite" {
+                    self.web.callAsyncJavaScript("await window.ZenRayGemini.rewrite(payload)",arguments:["payload":["id":"probe","instruction":"Correct only punctuation. Return only the corrected text.","text":"Bonjour ceci est un test","model":"Flash"]],in:nil,in:.page) { result in print(result); fflush(stdout) }
+                    return
+                }
                 let audio = try! Data(contentsOf: URL(fileURLWithPath: CommandLine.arguments[1]))
                 self.web.callAsyncJavaScript("await window.ZenRayGemini.transcribe(payload)", arguments: ["payload": ["id":"probe", "audio":audio.base64EncodedString(), "responseTimeoutMs":45000]], in:nil, in:.page) { result in print(result); fflush(stdout) }
             }
