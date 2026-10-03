@@ -47,7 +47,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         fnKey.onRelease = { [weak self] in
             if DictationLibrary.shared.document.preferences.fnPushToTalk { TranscriptionPipeline.stopLive() }
         }
-        fnKey.onHandsFree = { [weak self] in TranscriptionPipeline.toggleLive() }
+        fnKey.onHandsFree = { TranscriptionPipeline.liveHandsFree() }
         let fnStarted = fnKey.start()
         Log.write("Fn visibility monitor started: \(fnStarted)")
         if !fnStarted {

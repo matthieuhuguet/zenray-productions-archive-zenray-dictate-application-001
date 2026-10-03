@@ -27,7 +27,10 @@
     audioContext = new AudioContext();
     source = audioContext.createMediaStreamSource(stream);
     const analyser = audioContext.createAnalyser(); analyser.fftSize = 256;
-    source.connect(analyser); audioContext.resume().catch(()=>{});
+    source.connect(analyser);
+    const silence=audioContext.createGain();silence.gain.value=0;
+    analyser.connect(silence);silence.connect(audioContext.destination);
+    audioContext.resume().catch(()=>{});
     const samples = new Float32Array(analyser.fftSize);
     const context = waveform.getContext('2d');
     function draw() {
@@ -113,6 +116,11 @@
     cancel() { const button = [...document.querySelectorAll('button[aria-label]')].find(el=>/^(Arrêter|Stop|Terminer|Done)(?:\s|$)/i.test(el.getAttribute('aria-label'))); button?.click(); stopWaveform(); },
     state() { const root=document.querySelector(settings.composer); return {origin:location.origin,compact:document.documentElement.hasAttribute('data-zenray-compact'),composer:root?.tagName,editor:!!root?.querySelector(settings.editor),waveform:!!waveform,audioContext:audioContext?.state,level:smoothing}; }
   };
+  // 3 October 2026, 21:48 CEST: stop visualization on the real site's stop button without changing its handler.
+  document.addEventListener('click',event=>{
+    const button=event.target.closest?.('button');
+    if(button&&/^(Arrêter|Stop|Terminer|Done)(?:\s|$)/i.test(button.getAttribute('aria-label')||'')) stopWaveform();
+  },true);
   new MutationObserver(apply).observe(document,{childList:true,subtree:true});
   apply();
 })();

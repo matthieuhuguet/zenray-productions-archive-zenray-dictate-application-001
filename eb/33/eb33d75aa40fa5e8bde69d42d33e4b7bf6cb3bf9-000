@@ -26,6 +26,9 @@ final class GeminiWebTranscriber: NSObject, WKNavigationDelegate, WKUIDelegate, 
     private var liveRecording = false
     private var liveStarting = false
     private var stopRequested = false
+    private var handsFree = false
+    private var lastFnPress: Date?
+    private var releaseTask: Task<Void,Never>?
 
     override init() {
         super.init()
@@ -77,6 +80,24 @@ final class GeminiWebTranscriber: NSObject, WKNavigationDelegate, WKUIDelegate, 
         else { sessionWindow.orderFrontRegardless() }
     }
 
+    // 3 October 2026, 21:46 CEST: hold and double-press operate the website microphone directly.
+    func pressFn() {
+        releaseTask?.cancel()
+        if liveRecording || liveStarting {
+            if let lastFnPress,Date().timeIntervalSince(lastFnPress)<DictationLibrary.shared.document.preferences.doublePressInterval { handsFree=true; return }
+            if handsFree { handsFree=false; stopLiveMicrophone(); return }
+        }
+        lastFnPress=Date(); handsFree=false; startLiveMicrophone()
+    }
+    func releaseFn() {
+        guard !handsFree else { return }
+        releaseTask=Task { [weak self] in
+            try? await Task.sleep(nanoseconds:UInt64(DictationLibrary.shared.document.preferences.doublePressInterval*1_000_000_000))
+            if !Task.isCancelled { self?.stopLiveMicrophone() }
+        }
+    }
+    func fnSpace() { releaseTask?.cancel(); if liveRecording || liveStarting { handsFree=true } else { handsFree=true;startLiveMicrophone() } }
+
     func startLiveMicrophone() {
         guard !liveRecording, !liveStarting, continuation == nil else { return }
         stopRequested = false; liveStarting = true
@@ -99,7 +120,7 @@ final class GeminiWebTranscriber: NSObject, WKNavigationDelegate, WKUIDelegate, 
         }
     }
 
-    func toggleLiveMicrophone() { if liveRecording || liveStarting { stopLiveMicrophone() } else { startLiveMicrophone() } }
+    func toggleLiveMicrophone() { releaseTask?.cancel(); handsFree=true; if liveRecording || liveStarting { stopLiveMicrophone() } else { startLiveMicrophone() } }
     func cancelLiveMicrophone() { stopLiveMicrophone() }
     private func showLiveError(_ error:Error) {
         Log.write("Gemini live microphone: \(error.localizedDescription)")
