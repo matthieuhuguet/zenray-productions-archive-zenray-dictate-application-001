@@ -22,6 +22,9 @@ final class Probe: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessage
         window.title = "ZenRayDictate · Gemini connection"
         window.contentView = web
         web.load(URLRequest(url: URL(string: "https://gemini.google.com/app")!))
+        Timer.scheduledTimer(withTimeInterval: 12, repeats: true) { [weak self] _ in
+            self?.web.evaluateJavaScript("JSON.stringify({responseCount:document.querySelectorAll('message-content').length, messages:[...document.querySelectorAll('model-response')].map(e=>e.innerText), dialogs:[...document.querySelectorAll('[role=dialog]')].map(e=>e.innerText), composer:document.querySelector('[role=textbox]')?.parentElement?.parentElement?.innerText})") { value,error in print(value ?? error as Any); fflush(stdout) }
+        }
         var sent = false
         timer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] timer in
             guard let self else { return }
@@ -40,7 +43,7 @@ final class Probe: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessage
     }
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
         print(message.body); fflush(stdout)
-        NSApp.terminate(nil)
+        web.evaluateJavaScript("JSON.stringify({responses: [...document.querySelectorAll('message-content')].map(e=>({html:e.innerHTML.slice(0,2500),text:e.innerText})), dialogs:[...document.querySelectorAll('[role=dialog]')].map(e=>e.innerText), editor:document.querySelector('[role=textbox]')?.innerText})") { result,error in print(result ?? error as Any); fflush(stdout); NSApp.terminate(nil) }
     }
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         print("Loaded",webView.url?.host ?? "unknown");fflush(stdout)
