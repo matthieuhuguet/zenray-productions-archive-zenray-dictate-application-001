@@ -89,6 +89,25 @@ final class GeminiWebTranscriber: NSObject, WKNavigationDelegate, WKUIDelegate, 
         }
     }
 
+    func rewrite(_ text: String, instruction: String, model: String) async throws -> String {
+        guard continuation == nil else { throw TranscriptionError.geminiUnavailable("Gemini is busy.") }
+        if resourceError != nil { throw resourceError! }
+        let deadline = Date().addingTimeInterval(Settings.readyTimeout)
+        while webView.isLoading && Date() < deadline { try await Task.sleep(nanoseconds: 250_000_000) }
+        let id = UUID().uuidString
+        let result: TranscriptionResult = try await withCheckedThrowingContinuation { pending in
+            continuation = pending; requestID = id
+            timeoutTask = Task { [weak self] in
+                try? await Task.sleep(nanoseconds: 90_000_000_000)
+                if !Task.isCancelled { self?.finish(.failure(TranscriptionError.geminiUnavailable("Gemini text processing timed out."))) }
+            }
+            webView.callAsyncJavaScript("await window.ZenRayGemini.rewrite(payload)", arguments: ["payload":["id":id,"text":text,"instruction":instruction,"model":model]], in:nil,in:.page) { [weak self] result in
+                if case let .failure(error) = result { self?.finish(.failure(error)) }
+            }
+        }
+        return result.text
+    }
+
     private func finish(_ result: Result<TranscriptionResult, Error>) {
         guard let pending = continuation else { return }
         continuation = nil

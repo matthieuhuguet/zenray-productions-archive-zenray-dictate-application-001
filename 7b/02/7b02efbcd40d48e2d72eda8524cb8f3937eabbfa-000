@@ -49,6 +49,38 @@
       if (request.startedAt && !request.stopped) button(settings.stopLabels)?.click();
       await clean(request);
     },
+    rewrite: async payload => {
+      if (active) throw new Error('Gemini is busy.');
+      const request = { id: payload.id, cancelled: false };
+      active = request;
+      const responses = () => [...document.querySelectorAll('message-content .markdown')];
+      try {
+        const field = editor();
+        if (!field || field.innerText.trim()) throw new Error('Gemini contains a draft. Clear the dedicated session before processing text.');
+        const before = responses().length;
+        const picker = document.querySelector('[data-test-id="bard-mode-menu-button"]');
+        if (picker && payload.model && !picker.innerText.includes(payload.model)) throw new Error('Choose ' + payload.model + ' in the Gemini session before processing this mode.');
+        field.focus();
+        document.execCommand('insertText', false, payload.instruction + '\n\nInput:\n' + payload.text);
+        const send = button(/^(Envoyer|Send|Submit)(?:\s|$)/i);
+        if (!send) throw new Error('Gemini Send control is unavailable.');
+        send.click();
+        const deadline = Date.now() + 85000;
+        let last = '', changedAt = Date.now();
+        while (!request.cancelled && Date.now() < deadline) {
+          const list = responses();
+          const text = list.length > before ? list[list.length - 1].innerText.trim() : '';
+          if (text !== last) { last = text; changedAt = Date.now(); }
+          const generating = button(/^(Arrêter la réponse|Stop response|Stop generating)/i);
+          if (last && !generating && Date.now() - changedAt > settings.settleMs) {
+            report(request, { text: last }); return;
+          }
+          await sleep(settings.pollMs);
+        }
+        if (!request.cancelled) throw new Error('Gemini did not complete its text response.');
+      } catch (error) { if (!request.cancelled) report(request, { error: error.message }); }
+      finally { await clean(request); }
+    },
     transcribe: async payload => {
       if (active) throw new Error('Gemini dictation is busy.');
       const request = { id: payload.id, cancelled: false };

@@ -730,7 +730,7 @@ private final class ComposerCardView: NSView {
     }
 }
 
-private final class WaveformView: NSView {
+final class WaveformView: NSView {
     var isActive = false { didSet { needsDisplay = true } }
     private var levels = Array(repeating: CGFloat(0.08), count: ComposerTokens.waveformBars)
 
