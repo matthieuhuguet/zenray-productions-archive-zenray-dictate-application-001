@@ -33,9 +33,10 @@ final class BuiltinMicrophone: @unchecked Sendable {
         throw NSError(domain:"ZenRayDictate.AudioInput",code:1,userInfo:[NSLocalizedDescriptionKey:"The built-in MacBook microphone is unavailable. AirPods will not be substituted."])
     }
     func name(_ device:AudioDeviceID) throws -> String {
-        var property=address(kAudioObjectPropertyName),size=UInt32(MemoryLayout<CFString?>.size),value:CFString?
+        var property=address(kAudioObjectPropertyName),size=UInt32(MemoryLayout<UnsafeRawPointer?>.size),value:UnsafeRawPointer?
         try check(AudioObjectGetPropertyData(device,&property,0,nil,&size,&value))
-        return value as String? ?? "Unknown device"
+        guard let value else { return "Unknown device" }
+        return Unmanaged<CFString>.fromOpaque(value).takeUnretainedValue() as String
     }
     func currentInput() throws -> AudioDeviceID { try number(system,kAudioHardwarePropertyDefaultInputDevice) }
     func currentOutput() throws -> AudioDeviceID { try number(system,kAudioHardwarePropertyDefaultOutputDevice) }
