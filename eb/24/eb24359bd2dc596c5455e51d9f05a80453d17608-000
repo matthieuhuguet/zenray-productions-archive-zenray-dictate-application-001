@@ -55,19 +55,19 @@ final class TranscriptionPipeline {
 
 private final class LocalWhisperTranscriber: @unchecked Sendable {
 
-    private var executable: String { DictationLibrary.shared.document.preferences.whisperExecutable }
-    private var model: String { DictationLibrary.shared.document.preferences.whisperModel }
 
     func transcribe(audioURL: URL) async throws -> TranscriptionResult {
-        guard FileManager.default.isExecutableFile(atPath: executable),
-              FileManager.default.fileExists(atPath: model) else {
+        let settings = DictationLibrary.shared.document.preferences
+        let terms = DictationLibrary.shared.document.vocabulary.map(\.written).joined(separator: ", ")
+        guard FileManager.default.isExecutableFile(atPath: settings.whisperExecutable),
+              FileManager.default.fileExists(atPath: settings.whisperModel) else {
             throw TranscriptionError.localEngineUnavailable
         }
 
         return try await withCheckedThrowingContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
                 do {
-                    let result = try self.run(audioURL: audioURL)
+                    let result = try self.run(audioURL: audioURL,settings:settings,terms:terms)
                     continuation.resume(returning: result)
                 } catch {
                     continuation.resume(throwing: error)
@@ -76,25 +76,23 @@ private final class LocalWhisperTranscriber: @unchecked Sendable {
         }
     }
 
-    private func run(audioURL: URL) throws -> TranscriptionResult {
+    private func run(audioURL: URL, settings: DictationPreferences, terms: String) throws -> TranscriptionResult {
         let outputDirectory = FileManager.default.temporaryDirectory
             .appendingPathComponent("ZenRayDictate-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: outputDirectory, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: outputDirectory) }
 
         let process = Process()
-        process.executableURL = URL(fileURLWithPath: executable)
+        process.executableURL = URL(fileURLWithPath: settings.whisperExecutable)
         process.arguments = [
             audioURL.path,
-            "--model", model,
+            "--model", settings.whisperModel,
             "--output-dir", outputDirectory.path,
             "--output-name", "result",
             "--output-format", "json",
             "--verbose", "False"
         ]
-        let preferences = DictationLibrary.shared.document.preferences
-        if preferences.language != "auto", !preferences.language.isEmpty { process.arguments! += ["--language", preferences.language] }
-        let terms = DictationLibrary.shared.document.vocabulary.map(\.written).joined(separator: ", ")
+        if settings.language != "auto", !settings.language.isEmpty { process.arguments! += ["--language", settings.language] }
         if !terms.isEmpty { process.arguments! += ["--initial-prompt", terms] }
         process.environment = ProcessInfo.processInfo.environment.merging(["HF_HUB_OFFLINE":"1","TRANSFORMERS_OFFLINE":"1"]) { _,new in new }
         process.standardOutput = FileHandle.nullDevice

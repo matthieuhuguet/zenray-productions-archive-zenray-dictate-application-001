@@ -97,6 +97,7 @@ final class DictationLibrary {
     let directory: URL
     var document: LibraryDocument
     private let file: URL
+    private var recoveryBlocked = false
     init(directory: URL? = nil) {
         self.directory = directory ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("ZenRayDictate/Library", isDirectory: true)
         file = self.directory.appendingPathComponent("Library.json")
@@ -109,11 +110,12 @@ final class DictationLibrary {
                     try FileManager.default.createDirectory(at:recovery,withIntermediateDirectories:true)
                     try FileManager.default.copyItem(at:file,to:recovery.appendingPathComponent("Library-" + UUID().uuidString + ".json"))
                     document.lastError = "The library could not be read. Its original file is preserved in Recovery. " + error.localizedDescription
-                } catch { document.lastError = "The library could not be read or backed up. Do not save settings before recovering Library.json. " + error.localizedDescription }
+                } catch { recoveryBlocked = true; document.lastError = "The library could not be read or backed up. Do not save settings before recovering Library.json. " + error.localizedDescription }
             }
         }
     }
     func save() throws {
+        guard !recoveryBlocked else { throw TranscriptionError.geminiUnavailable("Library recovery failed; the original Library.json is protected from overwrite.") }
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         try encoder.encode(document).write(to: file, options: .atomic)
@@ -166,7 +168,8 @@ final class DictationLibrary {
             try FileManager.default.copyItem(at: audioURL, to: folder.appendingPathComponent(name))
             entry.audioFile = "Audio/" + name
         }
-        document.history.append(entry); try save()
+        document.history.append(entry)
+        do { try save() } catch { document.history.removeLast(); if let file = entry.audioFile { try? FileManager.default.removeItem(at:directory.appendingPathComponent(file)) }; throw error }
     }
     func retainedAudio(for entry: DictationRecord) throws -> URL {
         guard let relative = entry.audioFile, relative.hasPrefix("Audio/"), !relative.contains(".."), relative.split(separator: "/").count == 2 else {
