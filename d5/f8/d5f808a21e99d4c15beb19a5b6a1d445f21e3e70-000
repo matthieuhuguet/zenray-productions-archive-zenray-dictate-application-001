@@ -42,14 +42,20 @@
     "updatedAt": "3 October 2026",
     "objective": "Gemini website backend, native capsule, Wispr-style dictation library and Assets cloud mapping",
     "sessionId": "01a10202-a5c2-7942-9ec6-be571d28506f",
-    "status": "verification",
+    "status": "cloud-verification",
     "verified": [
-      "Gemini web dictation using synthetic witness audio",
-      "Sequential Gemini dictation and cleanup in the same app web session",
-      "Eight library tests",
-      "Bridge draft and origin rejection checks",
-      "Signed bundle and native composer invariants"
+      "Sequential Gemini website dictation and text cleanup",
+      "Native audio import and history replay, active mode unchanged",
+      "Offline Whisper French and installed Parakeet Japanese",
+      "Ten library tests",
+      "Bridge rejection checks",
+      "Signed version 3.0 bundle and preserved native composer"
     ],
-    "next": "Verify native media import, then archive and re-read the complete project mapping."
+    "next": "Wait for complete current-file archive, restore representative files and read immutable cloud mapping.",
+    "limitations": [
+      "Physical Fn press/release on user keyboard",
+      "Automatic paste and clipboard restoration in every target app",
+      "Full-screen OCR (accessible window labels are supported instead)"
+    ]
   }
 }
