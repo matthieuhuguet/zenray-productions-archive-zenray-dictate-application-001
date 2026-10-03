@@ -14,6 +14,10 @@ final class Probe: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessage
             let source = try! String(contentsOfFile: "Sources/ZenRayDictate/Resources/GeminiBridge.js", encoding:.utf8)
             configuration.userContentController.add(self, name: "dictation")
             configuration.userContentController.addUserScript(WKUserScript(source: source, injectionTime: .atDocumentStart, forMainFrameOnly: true))
+            if CommandLine.arguments[1] == "--inspect" {
+                let composer = try! String(contentsOfFile:"Sources/ZenRayDictate/Resources/GeminiComposer.js",encoding:.utf8)
+                configuration.userContentController.addUserScript(WKUserScript(source:composer,injectionTime:.atDocumentStart,forMainFrameOnly:true))
+            }
             configuration.mediaTypesRequiringUserActionForPlayback = []
         }
         web = WKWebView(frame: NSRect(x: 0, y: 0, width: 1000, height: 740), configuration: configuration)
@@ -32,7 +36,7 @@ final class Probe: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessage
                 sent = true; timer.invalidate()
                 // 3 October 2026, 21:32 CEST: inspect only the composer structure, excluding chat contents.
                 if CommandLine.arguments[1] == "--inspect" {
-                    self.web.evaluateJavaScript("JSON.stringify((()=>{let e=document.querySelector('[role= textbox][contenteditable=true]');let a=[];while(e&&a.length<12){a.push({tag:e.tagName,classes:e.className,height:e.getBoundingClientRect().height});e=e.parentElement;}return a;})())") { value,error in print(value ?? error as Any); fflush(stdout); exit(error == nil ? 0 : 1) }
+                    self.web.evaluateJavaScript("window.ZenRayComposer.setCompact(true); JSON.stringify({state:window.ZenRayComposer.state(),structure:(()=>{let e=document.querySelector('[role= textbox][contenteditable=true]');let a=[];while(e&&a.length<12){a.push({tag:e.tagName,classes:e.className,height:e.getBoundingClientRect().height});e=e.parentElement;}return a;})()})") { value,error in print(value ?? error as Any); fflush(stdout); exit(error == nil ? 0 : 1) }
                     return
                 }
                 if CommandLine.arguments[1] == "--rewrite" {
