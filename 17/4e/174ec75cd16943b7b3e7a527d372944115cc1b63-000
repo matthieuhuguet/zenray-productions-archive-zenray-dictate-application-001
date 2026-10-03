@@ -22,7 +22,31 @@ struct InsertionTarget {
         }
         let secure = read(kAXSubroleAttribute) as? String == kAXSecureTextFieldSubrole
         let selection = secure ? "" : read(kAXSelectedTextAttribute) as? String ?? ""
-        let context = includeContext && !secure ? String((read(kAXValueAttribute) as? String ?? "").prefix(6000)) : ""
+        var context = includeContext && !secure ? String((read(kAXValueAttribute) as? String ?? "").prefix(6000)) : ""
+        // 3 October 2026, 19:47 CEST: spelling context includes visible labels in the focused window, with bounded traversal.
+        if includeContext && !secure {
+            var windowValue: CFTypeRef?
+            if AXUIElementCopyAttributeValue(app,kAXFocusedWindowAttribute as CFString,&windowValue) == .success,
+               let windowValue, CFGetTypeID(windowValue) == AXUIElementGetTypeID() {
+                var visited = 0
+                func collect(_ item: AXUIElement, depth: Int) {
+                    guard depth < 6, visited < 100, context.count < 6000 else { return }
+                    visited += 1
+                    var subrole: CFTypeRef?
+                    AXUIElementCopyAttributeValue(item,kAXSubroleAttribute as CFString,&subrole)
+                    guard subrole as? String != kAXSecureTextFieldSubrole else { return }
+                    for attribute in [kAXTitleAttribute,kAXDescriptionAttribute,kAXValueAttribute] {
+                        var value: CFTypeRef?
+                        if AXUIElementCopyAttributeValue(item,attribute as CFString,&value) == .success,
+                           let text = value as? String, !text.isEmpty { context += "\n" + String(text.prefix(max(0,5999-context.count))) }
+                    }
+                    var children: CFTypeRef?
+                    if AXUIElementCopyAttributeValue(item,kAXChildrenAttribute as CFString,&children) == .success,
+                       let children = children as? [AXUIElement] { for child in children { collect(child,depth:depth+1) } }
+                }
+                collect(windowValue as! AXUIElement,depth:0)
+            }
+        }
         return InsertionTarget(application: application, element: element, selectedText: selection, context: context, secure: secure, selectedRange: read(kAXSelectedTextRangeAttribute))
     }
     @MainActor func insert(_ text: String, restoreDelay: Double) async throws {
