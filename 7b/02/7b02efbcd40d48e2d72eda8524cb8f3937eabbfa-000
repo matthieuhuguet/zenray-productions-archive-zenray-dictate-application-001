@@ -25,11 +25,7 @@
   const originalCapture = navigator.mediaDevices?.getUserMedia?.bind(navigator.mediaDevices);
   if (originalCapture) navigator.mediaDevices.getUserMedia = async constraints => {
     const request = active;
-    if (!request) {
-      const stream = await originalCapture(constraints);
-      window.ZenRayComposer?.observeStream(stream);
-      return stream;
-    }
+    if (!request) return originalCapture(constraints);
     if (!constraints?.audio || constraints.video) throw new Error('Only saved audio dictation is supported.');
     if (request.stream) return request.stream;
     const context = request.context;
@@ -38,7 +34,6 @@
     source.buffer = request.buffer;
     source.connect(destination);
     request.stream = destination.stream;
-    window.ZenRayComposer?.observeStream(request.stream);
     request.source = source;
     source.onended = () => { request.endedAt = Date.now(); };
     await context.resume();
