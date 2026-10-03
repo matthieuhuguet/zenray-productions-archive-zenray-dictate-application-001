@@ -1,3 +1,11 @@
+## 3 October 2026: Direct Gemini capsule
+
+The default window now contains Gemini's actual `input-container` DOM, with the website's live microphone. The signed 3.1 app uses a transparent borderless panel, 720 points wide, whose height follows the composer. Its legal footer is hidden in compact mode; the full Gemini session remains available from the menu. (3 October 2026)
+
+The waveform is an added visualization of the same MediaStream Gemini receives, not a copied proprietary Gemini animation. It follows the voice amplitude, disappears when recording stops and never requests a second microphone. This guest Gemini session itself displays a microphone ring. (3 October 2026)
+
+Hold Fn for the website microphone; double Fn or Fn+Space keeps it running; Control+D and Command+D toggle it. Control+Q stops and hides the capsule. Drafts remain editable in Gemini. Native history/import/custom modes/Command Mode remain available through the library and advanced native composer; direct Gemini editing does not automatically run that native processing pipeline. Whisper fallback is off by default and has been disabled in the current library. (3 October 2026)
+
 # ZenRay Dictate with Gemini (3 October 2026)
 
 The backend is the Gemini website at gemini.google.com, running in a dedicated app session. The native 18 px composer remains available. No Codex login or paid Gemini API key is required. (3 October 2026)
