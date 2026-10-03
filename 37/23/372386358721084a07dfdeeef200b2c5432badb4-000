@@ -14,6 +14,10 @@ final class DictationCoordinator {
     private var mode: DictationMode?
     private var command = false
     private var handsFree = false
+    private var fnHeld = false
+    private var commandHeld = false
+    private var pendingCommand = false
+    private var pendingFile: URL { library.directory.appendingPathComponent("Pending.json") }
     private var lastPress: Date?
     private var pendingRelease: Task<Void,Never>?
     private var work: Task<Void,Never>?
@@ -21,9 +25,17 @@ final class DictationCoordinator {
     var onUpdate: (() -> Void)?
 
     init() {
+        if let data = try? Data(contentsOf:pendingFile),
+           let saved = try? JSONSerialization.jsonObject(with:data) as? [String:Any],
+           let path = saved["audioPath"] as? String,
+           path.hasPrefix(library.directory.path + "/"), FileManager.default.fileExists(atPath:path) {
+            pendingURL = URL(fileURLWithPath:path); pendingCommand = saved["command"] as? Bool ?? false
+            mode = library.mode(for:"",override:saved["modeID"] as? String)
+        }
         capture.onLevel = { [weak self] level in self?.capsule.add(level: level) }
     }
     func pressFn() {
+        fnHeld = true
         pendingRelease?.cancel(); pendingRelease = nil
         if state == .processing { return }
         if state == .recording {
@@ -34,6 +46,7 @@ final class DictationCoordinator {
         lastPress = Date(); handsFree = false; start()
     }
     func releaseFn() {
+        fnHeld = false
         guard state == .recording, !handsFree else { return }
         let interval = library.document.preferences.doublePressInterval
         if let lastPress, Date().timeIntervalSince(lastPress) < interval {
@@ -53,6 +66,11 @@ final class DictationCoordinator {
         if state == .recording { stop() }
         else if state == .idle { handsFree = true; start(); capsule.show("Hands-free · shortcut to stop") }
     }
+    func beginCommand() {
+        guard state == .idle else { return }
+        commandHeld = true; command = true; handsFree = false; start()
+    }
+    func endCommand() { commandHeld = false; stop() }
     func toggleCommand() {
         if state == .recording { stop() }
         else if state == .idle { command = true; handsFree = true; start() }
@@ -66,7 +84,7 @@ final class DictationCoordinator {
         let permission = AVCaptureDevice.authorizationStatus(for:.audio)
         if permission == .notDetermined {
             AVCaptureDevice.requestAccess(for:.audio) { [weak self] allowed in
-                Task { @MainActor in if allowed { self?.start() } else { self?.fail("Allow microphone access in System Settings.") } }
+                Task { @MainActor in if allowed, let self, self.fnHeld || self.handsFree || self.commandHeld { self.start() } else if !allowed { self?.fail("Allow microphone access in System Settings.") } }
             }
             return
         }
@@ -90,6 +108,7 @@ final class DictationCoordinator {
     func retry() {
         guard state == .idle, let pendingURL else { return }
         target = InsertionTarget.capture(includeContext:false)
+        command = pendingCommand
         process(pendingURL,insert:true)
     }
     func importMedia(_ url: URL) {
@@ -133,7 +152,15 @@ final class DictationCoordinator {
         state = .processing; capsule.show("Transcribing · " + library.document.preferences.engine.rawValue)
         let selected = mode ?? library.mode(for:"")
         let destination = target; let isCommand = command
-        pendingURL = audio
+        pendingURL = audio; pendingCommand = isCommand
+        if ownsAudio {
+            do {
+                try FileManager.default.createDirectory(at:library.directory,withIntermediateDirectories:true)
+                let data = try JSONSerialization.data(withJSONObject:["audioPath":audio.path,"modeID":selected.id,"command":isCommand])
+                try data.write(to:pendingFile,options:.atomic)
+                try FileManager.default.setAttributes([.posixPermissions:0o600],ofItemAtPath:pendingFile.path)
+            } catch { fail("Cannot preserve recording for retry: " + error.localizedDescription); return }
+        }
         work = Task {
             do {
                 let result = try await pipeline.transcribe(audioURL:audio)
@@ -149,7 +176,7 @@ final class DictationCoordinator {
                 }
                 try library.record(raw:result.text,text:output,provider:result.provider,mode:selected.id,application:destination?.application.bundleIdentifier ?? "Imported file",audioURL:audio,inserted:inserted)
                 if ownsAudio { try FileManager.default.removeItem(at:audio) }
-                pendingURL = nil; state = .idle; command = false; handsFree = false; onUpdate?()
+                pendingURL = nil; if ownsAudio { try? FileManager.default.removeItem(at:pendingFile) }; state = .idle; command = false; handsFree = false; onUpdate?()
                 if let insertionError { fail(insertionError.localizedDescription) }
                 else { capsule.show(inserted ? "Inserted · " + result.provider : (library.document.preferences.keepHistory ? "Saved to History · " : "Copied · ") + result.provider); dismissLater() }
             } catch { state = .idle; command = false; fail(error.localizedDescription + " Recording saved for retry.") }

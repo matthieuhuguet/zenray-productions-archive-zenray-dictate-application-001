@@ -41,7 +41,7 @@ final class AudioCapture: NSObject {
         )[0]
         captureDirectory = supportDirectory
             .appendingPathComponent("ZenRayDictate", isDirectory: true)
-            .appendingPathComponent("Captures", isDirectory: true)
+            .appendingPathComponent("Library/Pending", isDirectory: true)
         super.init()
     }
 

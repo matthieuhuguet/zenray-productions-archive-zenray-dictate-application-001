@@ -32,7 +32,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         composer.show()
 
         configureDictationShortcut()
-        commandHotKey.onPress = { [weak self] in self?.flow.toggleCommand() }
+        commandHotKey.onPress = { [weak self] in self?.flow.beginCommand() }
+        commandHotKey.onRelease = { [weak self] in self?.flow.endCommand() }
         commandHotKey.register()
         legacyDictateHotKey.onPress = { [weak self] in self?.composer.toggleDictation() }
         legacyDictateHotKey.register()
@@ -106,7 +107,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let menu = NSMenu()
 
         let hint = NSMenuItem(
-            title: "⌃D or ⌘D starts/stops, ⌃Q cancels, ⌘X cuts all, ⌘Q clears, Fn shows/hides",
+            title: "Hold Fn to dictate; double Fn or Fn+Space hands-free; hold ⌃⇧D for commands; ⌘D composer",
             action: nil, keyEquivalent: ""
         )
         hint.isEnabled = false
