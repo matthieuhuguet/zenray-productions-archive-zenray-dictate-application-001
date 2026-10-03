@@ -13,6 +13,7 @@ import AppKit
                 let web=GeminiWebTranscriber()
                 fputs("Fn probe initialized\n",stderr);fflush(stderr)
                 let audio=try Data(contentsOf:URL(fileURLWithPath:CommandLine.arguments[1]))
+                fputs("Fn probe audio read\n",stderr);fflush(stderr)
                 web.installVerificationAudio(audio)
                 fputs("Fn probe audio installed\n",stderr);fflush(stderr)
                 var states=[String]();web.onLiveState={ states.append($0) }

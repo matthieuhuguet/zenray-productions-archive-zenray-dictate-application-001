@@ -174,14 +174,19 @@ final class GeminiWebTranscriber: NSObject, WKNavigationDelegate, WKUIDelegate, 
     // 3 October 2026, 22:20 CEST: the verification build substitutes synthetic audio without opening a real microphone.
     func installVerificationAudio(_ audio:Data) {
         let controller=webView.configuration.userContentController,scripts=controller.userScripts
+        fputs("Fn install scripts begin\n",stderr);fflush(stderr)
         controller.removeAllUserScripts()
         let script="""
         navigator.mediaDevices.getUserMedia=async()=>{const bytes=Uint8Array.from(atob('\(audio.base64EncodedString())'),c=>c.charCodeAt(0));const c=new AudioContext();const b=await c.decodeAudioData(bytes.buffer);const d=c.createMediaStreamDestination();const source=c.createBufferSource();source.buffer=b;source.connect(d);await c.resume();source.start();d.stream.getAudioTracks().forEach(t=>t.addEventListener('ended',()=>c.close(),{once:true}));return d.stream;};
         """
+        fputs("Fn install generated audio\n",stderr);fflush(stderr)
         controller.addUserScript(WKUserScript(source:script,injectionTime:.atDocumentStart,forMainFrameOnly:true))
         scripts.forEach { controller.addUserScript($0) }
+        fputs("Fn install reload\n",stderr);fflush(stderr)
         webView.reload()
+        fputs("Fn install parking\n",stderr);fflush(stderr)
         prepareHiddenCapture()
+        fputs("Fn install parked\n",stderr);fflush(stderr)
     }
     func verificationState() async throws -> [String:Any] {
         var result=(try await webView.evaluateJavaScript("({ready:!!window.ZenRayComposer&&!!window.ZenRayGemini?.ready(),draft:document.querySelector('[role=\"textbox\"][contenteditable=\"true\"]')?.innerText||''})")) as? [String:Any] ?? [:]
