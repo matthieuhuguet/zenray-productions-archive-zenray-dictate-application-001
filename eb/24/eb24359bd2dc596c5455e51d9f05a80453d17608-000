@@ -9,7 +9,7 @@ struct TranscriptionResult {
 enum TranscriptionError: LocalizedError {
     case geminiUnavailable(String)
     case invalidResponse
-        case localEngineUnavailable
+    case localEngineUnavailable
     case localEngineFailed(status: Int32)
 
     var errorDescription: String? {
@@ -34,10 +34,18 @@ final class TranscriptionPipeline {
 
     @MainActor static func showGemini() { gemini.showSession() }
 
+    @MainActor static func rewrite(_ text: String, instruction: String, model: String) async throws -> String {
+        try await gemini.rewrite(text, instruction: instruction, model: model)
+    }
+
     func transcribe(audioURL: URL) async throws -> TranscriptionResult {
+        let preferences = DictationLibrary.shared.document.preferences
+        if preferences.localOnly || preferences.engine == .whisper { return try await local.transcribe(audioURL: audioURL) }
+        if preferences.engine == .parakeet { return try await LocalParakeetTranscriber().transcribe(audioURL: audioURL) }
         do {
             return try await Self.gemini.transcribe(audioURL: audioURL)
         } catch {
+            if !preferences.allowLocalFallback { throw error }
             Log.write("Gemini web dictation unavailable: \(error.localizedDescription); trying local engine")
         }
 
@@ -47,8 +55,8 @@ final class TranscriptionPipeline {
 
 private final class LocalWhisperTranscriber: @unchecked Sendable {
 
-    private let executable = "/Users/zenray/.venvs/asr-ja/bin/mlx_whisper"
-    private let model = "/Users/zenray/.cache/huggingface/hub/models--mlx-community--whisper-large-v3-turbo/snapshots/a4aaeec0636e6fef84abdcbe3544cb2bf7e9f6fb"
+    private var executable: String { DictationLibrary.shared.document.preferences.whisperExecutable }
+    private var model: String { DictationLibrary.shared.document.preferences.whisperModel }
 
     func transcribe(audioURL: URL) async throws -> TranscriptionResult {
         guard FileManager.default.isExecutableFile(atPath: executable),
@@ -82,9 +90,12 @@ private final class LocalWhisperTranscriber: @unchecked Sendable {
             "--output-dir", outputDirectory.path,
             "--output-name", "result",
             "--output-format", "json",
-            "--language", "fr",
             "--verbose", "False"
         ]
+        let preferences = DictationLibrary.shared.document.preferences
+        if preferences.language != "auto", !preferences.language.isEmpty { process.arguments! += ["--language", preferences.language] }
+        let terms = DictationLibrary.shared.document.vocabulary.map(\.written).joined(separator: ", ")
+        if !terms.isEmpty { process.arguments! += ["--initial-prompt", terms] }
         process.standardOutput = FileHandle.nullDevice
         process.standardError = FileHandle.nullDevice
         try process.run()
@@ -109,3 +120,29 @@ private final class LocalWhisperTranscriber: @unchecked Sendable {
     }
 }
 
+
+// 3 October 2026, 16:02 CEST: use the already installed Parakeet executable without installing models.
+private final class LocalParakeetTranscriber: @unchecked Sendable {
+    func transcribe(audioURL: URL) async throws -> TranscriptionResult {
+        let settings = DictationLibrary.shared.document.preferences
+        guard FileManager.default.isExecutableFile(atPath: settings.parakeetExecutable) else { throw TranscriptionError.localEngineUnavailable }
+        return try await withCheckedThrowingContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                let folder = FileManager.default.temporaryDirectory.appendingPathComponent("ZenRayParakeet-" + UUID().uuidString)
+                defer { try? FileManager.default.removeItem(at: folder) }
+                do {
+                    try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+                    let process = Process()
+                    process.executableURL = URL(fileURLWithPath: settings.parakeetExecutable)
+                    process.arguments = [audioURL.path, "--model", settings.parakeetModel, "--output-dir", folder.path, "--output-format", "txt", "--output-template", "result"]
+                    process.standardOutput = FileHandle.nullDevice; process.standardError = FileHandle.nullDevice
+                    try process.run(); process.waitUntilExit()
+                    guard process.terminationStatus == 0 else { throw TranscriptionError.localEngineFailed(status: process.terminationStatus) }
+                    let text = try String(contentsOf: folder.appendingPathComponent("result.txt"), encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines)
+                    guard !text.isEmpty else { throw TranscriptionError.invalidResponse }
+                    continuation.resume(returning: .init(text: text, provider: "Local Parakeet"))
+                } catch { continuation.resume(throwing: error) }
+            }
+        }
+    }
+}
