@@ -24,6 +24,10 @@
 		<data>
 		dfqisyYDfiGw5GNMSslDQCGLri8=
 		</data>
+		<key>Resources/GeminiComposer.js</key>
+		<data>
+		HfCeYAx2P7EXj2BDO0KQqYGlIzs=
+		</data>
 	</dict>
 	<key>files2</key>
 	<dict>
@@ -60,6 +64,13 @@
 			<key>hash2</key>
 			<data>
 			34Z69/lJnUUxNahUUf6z6LRfgehvYFmGnfTlnh3b5yU=
+			</data>
+		</dict>
+		<key>Resources/GeminiComposer.js</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			z3MgMjgxwBhUYXc6dxaAan+/CqQkXoIFd+MRBd5/GA8=
 			</data>
 		</dict>
 	</dict>

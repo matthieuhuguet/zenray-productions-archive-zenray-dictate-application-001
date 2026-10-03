@@ -1,0 +1,55 @@
+// 3 October 2026, 21:35 CEST: isolate the real Angular composer without cloning or relocating its DOM.
+(() => {
+  if (location.hostname !== 'gemini.google.com') return;
+  const settings = { composer: 'input-container', editor: '[role="textbox"][contenteditable="true"]' };
+  let compact = false;
+  const style = document.createElement('style');
+  style.textContent = `
+    html[data-zenray-compact] [data-zenray-hidden] { display:none!important; }
+    html[data-zenray-compact], html[data-zenray-compact] body { margin:0!important; padding:0!important; overflow:hidden!important; }
+    html[data-zenray-compact] [data-zenray-path] { position:static!important; transform:none!important; padding:0!important; margin:0!important; min-height:0!important; height:auto!important; width:100%!important; max-width:none!important; overflow:visible!important; }
+    html[data-zenray-compact] [data-zenray-composer] { position:fixed!important; inset:12px!important; width:auto!important; max-width:none!important; margin:0!important; z-index:100!important; }
+    html[data-zenray-compact] [data-zenray-composer] .input-area-container { margin:0!important; width:100%!important; max-width:none!important; }
+    html[data-zenray-compact] [data-zenray-composer] rich-textarea .ql-editor { max-height:145px!important; overflow-y:auto!important; }
+    html[data-zenray-compact] .cdk-overlay-container { position:fixed!important; z-index:1000!important; }
+  `;
+  let previousRoot = null;
+  function apply() {
+    if (!document.documentElement) return;
+    if (!style.isConnected) (document.head || document.documentElement).append(style);
+    const root = document.querySelector(settings.composer);
+    // Keep the complete page visible for sign-in, errors or an upstream DOM change.
+    if (!compact || !root || !root.querySelector(settings.editor)) {
+      document.documentElement.removeAttribute('data-zenray-compact'); return;
+    }
+    document.documentElement.setAttribute('data-zenray-compact','');
+    if (root === previousRoot && root.hasAttribute('data-zenray-composer')) return;
+    document.querySelectorAll('[data-zenray-hidden],[data-zenray-path],[data-zenray-composer]').forEach(el=>{
+      el.removeAttribute('data-zenray-hidden'); el.removeAttribute('data-zenray-path'); el.removeAttribute('data-zenray-composer');
+    });
+    previousRoot = root;
+    root.setAttribute('data-zenray-composer','');
+    let child = root;
+    while (child.parentElement && child.parentElement !== document.documentElement) {
+      const parent = child.parentElement;
+      parent.setAttribute('data-zenray-path','');
+      for (const sibling of parent.children) {
+        if (sibling !== child && sibling !== style && !sibling.matches('.cdk-overlay-container,script,style,link')) sibling.setAttribute('data-zenray-hidden','');
+      }
+      child = parent;
+    }
+  }
+  window.ZenRayComposer = {
+    setCompact(value) { compact = Boolean(value); previousRoot = null; apply(); },
+    microphone(stop = false) {
+      const pattern = stop ? /^(Arrêter|Stop|Terminer|Done)(?:\s|$)/i : /^(Dicter|Dictate|Use microphone|Microphone)(?:\s|$)/i;
+      const button = [...document.querySelectorAll('button[aria-label]')].find(el=>!el.disabled&&el.getClientRects().length&&pattern.test(el.getAttribute('aria-label')));
+      if (!button) throw new Error(stop ? 'Gemini microphone is not recording.' : 'Gemini microphone is unavailable. Open the full session to check access.');
+      button.click();
+    },
+    cancel() { const button = [...document.querySelectorAll('button[aria-label]')].find(el=>/^(Arrêter|Stop|Terminer|Done)(?:\s|$)/i.test(el.getAttribute('aria-label'))); button?.click(); },
+    state() { const root=document.querySelector(settings.composer); return {origin:location.origin,compact:document.documentElement.hasAttribute('data-zenray-compact'),composer:root?.tagName,editor:!!root?.querySelector(settings.editor)}; }
+  };
+  new MutationObserver(apply).observe(document,{childList:true,subtree:true});
+  apply();
+})();

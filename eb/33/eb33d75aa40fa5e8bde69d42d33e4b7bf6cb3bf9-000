@@ -19,6 +19,10 @@ final class GeminiWebTranscriber: NSObject, WKNavigationDelegate, WKUIDelegate, 
     private var timeoutTask: Task<Void, Never>?
     private var resourceError: Error?
     private var finishing = false
+    private var compact = true
+    private var liveRecording = false
+    private var liveStarting = false
+    private var stopRequested = false
 
     override init() {
         super.init()
@@ -32,11 +36,17 @@ final class GeminiWebTranscriber: NSObject, WKNavigationDelegate, WKUIDelegate, 
             }
             let script = try String(contentsOf: url, encoding: .utf8)
             configuration.userContentController.addUserScript(WKUserScript(source: script, injectionTime: .atDocumentStart, forMainFrameOnly: true))
+            guard let composerURL = Bundle.main.url(forResource: "GeminiComposer", withExtension: "js") else { throw TranscriptionError.geminiUnavailable("The Gemini composer resource is missing.") }
+            configuration.userContentController.addUserScript(WKUserScript(source: try String(contentsOf:composerURL,encoding:.utf8), injectionTime:.atDocumentStart,forMainFrameOnly:true))
         } catch { resourceError = error }
         webView = WKWebView(frame: NSRect(x: 0, y: 0, width: 1000, height: 740), configuration: configuration)
         webView.navigationDelegate = self
         webView.uiDelegate = self
-        sessionWindow = NSWindow(contentRect: webView.frame, styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
+        sessionWindow = NSPanel(contentRect:NSRect(x:0,y:0,width:860,height:230),styleMask:[.titled,.closable,.resizable,.nonactivatingPanel],backing:.buffered,defer:false)
+        sessionWindow.level = .floating
+        (sessionWindow as? NSPanel)?.hidesOnDeactivate = false
+        sessionWindow.collectionBehavior = [.canJoinAllSpaces,.fullScreenAuxiliary]
+        sessionWindow.contentMinSize = NSSize(width:520,height:200)
         sessionWindow.title = "ZenRayDictate · Gemini session"
         sessionWindow.isReleasedWhenClosed = false
         sessionWindow.contentView = webView
@@ -44,7 +54,51 @@ final class GeminiWebTranscriber: NSObject, WKNavigationDelegate, WKUIDelegate, 
         webView.load(URLRequest(url: Settings.url))
     }
 
+    // 3 October 2026, 21:35 CEST: the main window contains Gemini's live DOM and microphone.
+    func showComposer(activate: Bool = true) {
+        compact = true
+        webView.evaluateJavaScript("window.ZenRayComposer?.setCompact(true)")
+        sessionWindow.title = "ZenRayDictate · Gemini"
+        sessionWindow.setContentSize(NSSize(width:860,height:230))
+        if let screen = NSScreen.main { let frame=screen.visibleFrame; sessionWindow.setFrameOrigin(NSPoint(x:frame.midX-430,y:frame.minY+22)) }
+        if activate { sessionWindow.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps:true) }
+        else { sessionWindow.orderFrontRegardless() }
+    }
+
+    func startLiveMicrophone() {
+        guard !liveRecording, !liveStarting, continuation == nil else { return }
+        stopRequested = false; liveStarting = true
+        showComposer(activate:false)
+        webView.evaluateJavaScript("window.ZenRayComposer.microphone(false)") { [weak self] _,error in
+            guard let self else { return }
+            self.liveStarting = false
+            if let error { self.showLiveError(error); return }
+            self.liveRecording = true
+            if self.stopRequested { self.stopLiveMicrophone() }
+        }
+    }
+
+    func stopLiveMicrophone() {
+        if liveStarting { stopRequested = true; return }
+        guard liveRecording else { return }
+        webView.evaluateJavaScript("window.ZenRayComposer.microphone(true)") { [weak self] _,error in
+            self?.liveRecording = false
+            if let error { self?.showLiveError(error) }
+        }
+    }
+
+    func toggleLiveMicrophone() { if liveRecording || liveStarting { stopLiveMicrophone() } else { startLiveMicrophone() } }
+    func cancelLiveMicrophone() { stopLiveMicrophone() }
+    private func showLiveError(_ error:Error) {
+        Log.write("Gemini live microphone: \(error.localizedDescription)")
+        let alert = NSAlert(); alert.messageText = "Gemini microphone unavailable"; alert.informativeText = error.localizedDescription + " Open Gemini session from the menu to check access."; alert.beginSheetModal(for:sessionWindow)
+    }
+
     func showSession() {
+        compact = false
+        webView.evaluateJavaScript("window.ZenRayComposer?.setCompact(false)")
+        sessionWindow.title = "ZenRayDictate · Gemini session"
+        sessionWindow.setContentSize(NSSize(width:1000,height:740)); sessionWindow.center()
         sessionWindow.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
     }
@@ -134,6 +188,10 @@ final class GeminiWebTranscriber: NSObject, WKNavigationDelegate, WKUIDelegate, 
             }
             finish(.success(TranscriptionResult(text: normalized, provider: "Gemini web dictation")))
         }
+    }
+
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        webView.evaluateJavaScript("window.ZenRayComposer?.setCompact(\(compact ? "true" : "false"))")
     }
 
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) { finish(.failure(error)) }
