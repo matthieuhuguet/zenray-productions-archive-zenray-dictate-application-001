@@ -6,6 +6,7 @@ final class Probe: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessage
     var web: WKWebView!
     var window: NSWindow!
     var timer: Timer?
+    var formatted = false
     func run() {
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = WKWebsiteDataStore(forIdentifier: UUID(uuidString: "72BB7BB9-9B1C-4DF7-BC76-6F8C4BE422D1")!)
@@ -22,9 +23,7 @@ final class Probe: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessage
         window.title = "ZenRayDictate · Gemini connection"
         window.contentView = web
         web.load(URLRequest(url: URL(string: "https://gemini.google.com/app")!))
-        Timer.scheduledTimer(withTimeInterval: 12, repeats: true) { [weak self] _ in
-            self?.web.evaluateJavaScript("JSON.stringify({responseCount:document.querySelectorAll('message-content').length, messages:[...document.querySelectorAll('model-response')].map(e=>e.innerText), dialogs:[...document.querySelectorAll('[role=dialog]')].map(e=>e.innerText), composer:document.querySelector('[role=textbox]')?.parentElement?.parentElement?.innerText})") { value,error in print(value ?? error as Any); fflush(stdout) }
-        }
+        Timer.scheduledTimer(withTimeInterval:120,repeats:false) { _ in print("Probe timed out"); fflush(stdout); exit(1) }
         var sent = false
         timer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] timer in
             guard let self else { return }
@@ -43,7 +42,14 @@ final class Probe: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessage
     }
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
         print(message.body); fflush(stdout)
-        web.evaluateJavaScript("JSON.stringify({responses: [...document.querySelectorAll('message-content')].map(e=>({html:e.innerHTML.slice(0,2500),text:e.innerText})), dialogs:[...document.querySelectorAll('[role=dialog]')].map(e=>e.innerText), editor:document.querySelector('[role=textbox]')?.innerText})") { result,error in print(result ?? error as Any); fflush(stdout); NSApp.terminate(nil) }
+        if CommandLine.arguments.count > 2 && CommandLine.arguments[2] == "--flow", !formatted, let payload = message.body as? [String:Any], let text = payload["text"] as? String {
+            formatted = true
+            web.callAsyncJavaScript("await window.ZenRayGemini.rewrite(payload)",arguments:["payload":["id":"format","instruction":"Correct only punctuation. Preserve vocabulary. Return only the corrected text.","text":text,"model":"Flash"]],in:nil,in:.page) { result in if case .failure = result { print(result); exit(1) } }
+            return
+        }
+        if let payload = message.body as? [String:Any], payload["error"] != nil { exit(1) }
+        NSApp.terminate(nil)
+
     }
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         print("Loaded",webView.url?.host ?? "unknown");fflush(stdout)

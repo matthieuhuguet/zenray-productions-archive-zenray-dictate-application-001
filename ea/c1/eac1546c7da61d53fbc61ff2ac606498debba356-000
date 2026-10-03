@@ -83,6 +83,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let appMenu = NSMenu(title: "ZenRayDictate")
         appMenu.addItem(withTitle: "About ZenRayDictate", action: nil, keyEquivalent: "")
         appMenu.addItem(.separator())
+        add(appMenu, "Library, History and Settings", #selector(showLibrary))
+        add(appMenu, "Gemini session / Sign in", #selector(showGeminiSession))
+        appMenu.addItem(.separator())
         appMenu.addItem(
             withTitle: "Quit ZenRayDictate",
             action: #selector(NSApplication.terminate(_:)),
