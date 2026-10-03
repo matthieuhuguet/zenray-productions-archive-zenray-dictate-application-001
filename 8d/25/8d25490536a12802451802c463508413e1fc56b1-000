@@ -1,4 +1,5 @@
 import AppKit
+import Carbon.HIToolbox
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -31,6 +32,8 @@ final class LibraryViewModel: ObservableObject {
     @Published var selectedID: UUID?
     @Published var editedText = ""
     @Published var replayMode = "verbatim"
+    @Published var shortcutLabel = "Record shortcut"
+    private var shortcutMonitor: Any?
     private let coordinator: DictationCoordinator
     private let onSettingsChanged: () -> Void
     init(coordinator: DictationCoordinator, onSettingsChanged: @escaping () -> Void) {
@@ -45,6 +48,26 @@ final class LibraryViewModel: ObservableObject {
         func encode<T:Encodable>(_ value:T)->String { (try? encoder.encode(value)).flatMap { String(data:$0,encoding:.utf8) } ?? "[]" }
         modesJSON = encode(document.modes); vocabularyJSON = encode(document.vocabulary)
         replacementsJSON = encode(document.replacements); snippetsJSON = encode(document.snippets)
+    }
+    // 3 October 2026, 16:40 CEST: users record a shortcut instead of entering Carbon key codes.
+    func recordShortcut() {
+        if let shortcutMonitor { NSEvent.removeMonitor(shortcutMonitor) }
+        shortcutLabel = "Press the shortcut (Escape to cancel)"
+        shortcutMonitor = NSEvent.addLocalMonitorForEvents(matching:.keyDown) { [weak self] event in
+            guard let self else { return event }
+            if let monitor = self.shortcutMonitor { NSEvent.removeMonitor(monitor); self.shortcutMonitor = nil }
+            guard event.keyCode != 53 else { self.shortcutLabel = "Record shortcut"; return nil }
+            let flags = event.modifierFlags
+            guard !flags.intersection([.control,.command,.option,.shift]).isEmpty else { self.shortcutLabel = "Include a modifier key"; return nil }
+            var mask: UInt32 = 0
+            if flags.contains(.control) { mask |= UInt32(controlKey) }
+            if flags.contains(.command) { mask |= UInt32(cmdKey) }
+            if flags.contains(.option) { mask |= UInt32(optionKey) }
+            if flags.contains(.shift) { mask |= UInt32(shiftKey) }
+            self.preferences.shortcutKeyCode = UInt32(event.keyCode); self.preferences.shortcutModifiers = mask
+            self.shortcutLabel = (flags.contains(.control) ? "⌃" : "") + (flags.contains(.option) ? "⌥" : "") + (flags.contains(.shift) ? "⇧" : "") + (flags.contains(.command) ? "⌘" : "") + (event.charactersIgnoringModifiers?.uppercased() ?? "Key")
+            return nil
+        }
     }
     func save() {
         do {
@@ -98,7 +121,7 @@ private struct LibraryView: View {
     var body: some View {
         VStack {
             TabView {
-                Form {
+                ScrollView { Form {
                     Picker("Engine",selection:$model.preferences.engine) { ForEach(DictationEngine.allCases,id:\.self) { Text($0.rawValue).tag($0) } }
                     Toggle("100% local (no Gemini requests)",isOn:$model.preferences.localOnly)
                     Toggle("Whisper fallback if Gemini fails",isOn:$model.preferences.allowLocalFallback)
@@ -114,12 +137,11 @@ private struct LibraryView: View {
                     TextField("Whisper model",text:$model.preferences.whisperModel)
                     TextField("Parakeet executable",text:$model.preferences.parakeetExecutable)
                     TextField("Parakeet model",text:$model.preferences.parakeetModel)
-                    TextField("Shortcut key code",value:$model.preferences.shortcutKeyCode,format:.number)
-                    TextField("Shortcut modifier mask",value:$model.preferences.shortcutModifiers,format:.number)
-                    Text("Default shortcut: Control+D. Fn+Space or double Fn enables hands-free. Control+Shift+D enables Command Mode. Set macOS ‘Press 🌐 key to’ to ‘Do Nothing’. The system shortcut setting remains yours.").font(.caption)
+                    Button(model.shortcutLabel) { model.recordShortcut() }
+                    Text("Default shortcut: Control+D. Fn+Space or double Fn enables hands-free. Hold Control+Shift+D for Command Mode. Set macOS ‘Press 🌐 key to’ to ‘Do Nothing’. The system shortcut setting remains yours.").font(.caption)
                     Button("Gemini session / Sign in") { TranscriptionPipeline.showGemini() }
                     Button("Open the single data folder") { try? FileManager.default.createDirectory(at:DictationLibrary.shared.directory,withIntermediateDirectories:true); NSWorkspace.shared.open(DictationLibrary.shared.directory) }
-                }.padding().tabItem { Text("Settings") }
+                }.padding() }.tabItem { Text("Settings") }
                 VStack(alignment:.leading) {
                     Text("Edit custom prompts, tone and application bundle IDs. useScreenContext opts into reading the focused text field for spelling. Gemini handles cloud formatting; local mode returns dictionary-corrected text.")
                     TextEditor(text:$model.modesJSON).font(.custom("AnthropicMono",size:13))
