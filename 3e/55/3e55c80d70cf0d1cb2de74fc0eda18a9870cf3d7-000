@@ -8,6 +8,18 @@
 		<data>
 		6R8LQBgm306GruHBfOMXTTEzYR4=
 		</data>
+		<key>Resources/Fonts/AnthropicMono-Regular.ttf</key>
+		<data>
+		FrY/KEkrVnGsh8U3sjsg+3tVPRQ=
+		</data>
+		<key>Resources/Fonts/AnthropicSerif-Regular.ttf</key>
+		<data>
+		rymDnNcTglm94OpE9X98QB172tU=
+		</data>
+		<key>Resources/Fonts/InterVariable.ttf</key>
+		<data>
+		QZQUFabejz3HdoIsz6ApUWFdQ1s=
+		</data>
 		<key>Resources/GeminiBridge.js</key>
 		<data>
 		wL7Pgf9xNDVCgOLXQsl0DihWj38=
@@ -20,6 +32,27 @@
 			<key>hash2</key>
 			<data>
 			qilMXAEizXjcdcVc/dHSqyFDuc3ylRJ08Aybj4RGFL0=
+			</data>
+		</dict>
+		<key>Resources/Fonts/AnthropicMono-Regular.ttf</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			Aa/Rgl1mydN2x4yE64ntSHB+dMsn/fGc7OIxJC8vekY=
+			</data>
+		</dict>
+		<key>Resources/Fonts/AnthropicSerif-Regular.ttf</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			rq0fmEamva8rQ1AJBZX0uCcNo1tv/Z+H4eV20wv7yME=
+			</data>
+		</dict>
+		<key>Resources/Fonts/InterVariable.ttf</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			SYmxJZJJkbkNBbLRbg44jEj31buLMFObv5x1UnjQzK8=
 			</data>
 		</dict>
 		<key>Resources/GeminiBridge.js</key>
