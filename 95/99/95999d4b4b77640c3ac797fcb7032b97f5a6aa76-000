@@ -11,7 +11,9 @@ import AppKit
             do {
                 fputs("Fn probe actor\n",stderr);fflush(stderr)
                 GeminiWebTranscriber.verificationScript="navigator.mediaDevices.getUserMedia=async()=>{const bytes=Uint8Array.from(atob(window.ZenRayVerificationAudio),c=>c.charCodeAt(0));const context=new AudioContext();const buffer=await context.decodeAudioData(bytes.buffer);const destination=context.createMediaStreamDestination();const source=context.createBufferSource();source.buffer=buffer;source.connect(destination);await context.resume();source.start();return destination.stream;};"
+                var states:[String]=[]
                 let web=GeminiWebTranscriber()
+                web.onLiveState={ states.append($0) }
                 fputs("Fn probe initialized\n",stderr);fflush(stderr)
                 let audio=try Data(contentsOf:URL(fileURLWithPath:CommandLine.arguments[1]))
                 let deadline=Date().addingTimeInterval(35)
@@ -51,7 +53,7 @@ import AppKit
                 try await Task.sleep(nanoseconds:400_000_000)
                 let hidden=try await web.verificationState()
                 guard hidden["presented"] as? Bool==false,hidden["alpha"] as? Double==0 else { throw NSError(domain:"FnProbe",code:5,userInfo:[NSLocalizedDescriptionKey:"Fade did not hide preview"] ) }
-                let proof:[String:Any]=["date":"3 October 2026","hiddenCapture":true,"releaseKeepsRecording":true,"secondFnStops":true,"copiedText":copied,"previewWidth":shown["width"]!,"rightInset":18,"faded":true,"states":states]
+                let proof:[String:Any]=["date":"4 October 2026","hiddenCapture":true,"releaseKeepsRecording":true,"secondFnStops":true,"copiedText":copied,"previewWidth":shown["width"]!,"rightInset":18,"faded":true,"states":states]
                 print(String(data:try JSONSerialization.data(withJSONObject:proof,options:[.sortedKeys]),encoding:.utf8)!)
                 if clipboard.changeCount==stamp { clipboard.clearContents();clipboard.writeObjects(previous.map { formats in let item=NSPasteboardItem();for(type,data)in formats{item.setData(data,forType:type)};return item }) }
                 fflush(stdout);exit(0)
