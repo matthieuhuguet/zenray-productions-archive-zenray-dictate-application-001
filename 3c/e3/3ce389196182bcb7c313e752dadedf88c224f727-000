@@ -1,0 +1,52 @@
+import AppKit
+import WebKit
+
+final class Probe: NSObject, WKNavigationDelegate, WKUIDelegate {
+    var web: WKWebView!
+    func run() {
+        let configuration = WKWebViewConfiguration()
+        configuration.websiteDataStore = WKWebsiteDataStore(forIdentifier: UUID(uuidString: "72BB7BB9-9B1C-4DF7-BC76-6F8C4BE422D1")!)
+        web = WKWebView(frame: NSRect(x: 0, y: 0, width: 1000, height: 740), configuration: configuration)
+        web.navigationDelegate = self
+        web.uiDelegate = self
+        web.load(URLRequest(url: URL(string: "https://gemini.google.com/app")!))
+        Timer.scheduledTimer(withTimeInterval: 8, repeats: false) { _ in
+            self.web.evaluateJavaScript("""
+            (() => {
+                const btn = [...document.querySelectorAll('button')].find(b => /dictate|micro/i.test(b.getAttribute('aria-label') || ''));
+                if (!btn) return 'NO BUTTON';
+                btn.click();
+                return 'CLICKED: ' + btn.getAttribute('aria-label');
+            })()
+            """) { val, err in
+                print("Click result:", val ?? err as Any)
+                fflush(stdout)
+                Timer.scheduledTimer(withTimeInterval: 3, repeats: false) { _ in
+                    self.web.evaluateJavaScript("""
+                    (() => {
+                        const buttons = [...document.querySelectorAll('button')].map(b => b.getAttribute('aria-label') || b.innerText).filter(Boolean);
+                        const wave = !!document.querySelector('butterfly-wave-view canvas, wave-canvas, .wave-canvas');
+                        const dialog = document.querySelector('mat-dialog-container, [role="dialog"]')?.innerText;
+                        return JSON.stringify({ buttons, wave, dialog });
+                    })()
+                    """) { val2, err2 in
+                        print("After 3s:", val2 ?? err2 as Any)
+                        fflush(stdout)
+                        exit(0)
+                    }
+                }
+            }
+        }
+    }
+
+    func webView(_ webView: WKWebView, requestMediaCapturePermissionFor origin: WKSecurityOrigin, initiatedByFrame frame: WKFrameInfo, type: WKMediaCaptureType, decisionHandler: @escaping (WKPermissionDecision) -> Void) {
+        print("Media capture requested for:", origin.host)
+        fflush(stdout)
+        decisionHandler(.grant)
+    }
+}
+let app = NSApplication.shared
+app.setActivationPolicy(.accessory)
+let p = Probe()
+p.run()
+app.run()

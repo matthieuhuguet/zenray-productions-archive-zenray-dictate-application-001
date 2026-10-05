@@ -1,0 +1,35 @@
+import AppKit
+import WebKit
+
+final class Probe: NSObject, WKNavigationDelegate {
+    var web: WKWebView!
+    func run() {
+        let configuration = WKWebViewConfiguration()
+        configuration.websiteDataStore = WKWebsiteDataStore(forIdentifier: UUID(uuidString: "72BB7BB9-9B1C-4DF7-BC76-6F8C4BE422D1")!)
+        web = WKWebView(frame: NSRect(x: 0, y: 0, width: 1000, height: 740), configuration: configuration)
+        web.navigationDelegate = self
+        web.load(URLRequest(url: URL(string: "https://gemini.google.com/app")!))
+        Timer.scheduledTimer(withTimeInterval: 8, repeats: false) { _ in
+            self.web.evaluateJavaScript("""
+            (() => {
+                const isSignIn = !![...document.querySelectorAll('button, a')].find(el => {
+                    const text = (el.innerText || '').trim();
+                    const aria = (el.getAttribute('aria-label') || '').trim();
+                    return /^(Sign in|Connexion|Se connecter)$/i.test(text) || /^(Sign in|Connexion|Se connecter)$/i.test(aria);
+                });
+                const accountBtn = !!document.querySelector('[aria-label*="Google Account" i], [aria-label*="Compte Google" i], .gb_d, [data-test-id="user-profile-button"]');
+                return JSON.stringify({ isSignIn, accountBtn, url: location.href, title: document.title });
+            })()
+            """) { val, err in
+                print(val ?? err as Any)
+                fflush(stdout)
+                exit(0)
+            }
+        }
+    }
+}
+let app = NSApplication.shared
+app.setActivationPolicy(.accessory)
+let p = Probe()
+p.run()
+app.run()
