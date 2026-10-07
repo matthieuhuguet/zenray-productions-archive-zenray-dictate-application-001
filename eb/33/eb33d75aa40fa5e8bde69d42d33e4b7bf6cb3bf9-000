@@ -36,6 +36,8 @@ final class GeminiWebTranscriber: NSObject, WKNavigationDelegate, WKUIDelegate, 
     private var resultPresented = false
     private var resultTransitioning = false
     private var resultTransitionElapsed: TimeInterval = 0
+    private var capturePresentationElapsed: TimeInterval = 0
+    private var captureFrameElapsed: TimeInterval = 0
     private var fadeGeneration = 0
     private var outsideMonitor: Any?
     private var localMonitor: Any?
@@ -188,6 +190,9 @@ final class GeminiWebTranscriber: NSObject, WKNavigationDelegate, WKUIDelegate, 
 
     func startLiveMicrophone() {
         guard !liveRecording,!liveStarting,!liveFinishing,continuation==nil else { return }
+        // 7 October 2026, 11:55 CEST: measure presentation separately from microphone readiness.
+        let presentationStarted = ProcessInfo.processInfo.systemUptime
+        capturePresentationElapsed = 0; captureFrameElapsed = 0
         do { try BuiltinMicrophone.shared.pin() } catch { showLiveError(error);return }
         if webView.url == nil {
             Log.write("Gemini web session not yet loaded; starting load")
@@ -195,6 +200,14 @@ final class GeminiWebTranscriber: NSObject, WKNavigationDelegate, WKUIDelegate, 
         }
         stopRequested=false;liveStarting=true;onLiveState?("starting")
         presentRecording()
+        capturePresentationElapsed = ProcessInfo.processInfo.systemUptime - presentationStarted
+        webView.callAsyncJavaScript("await new Promise(requestAnimationFrame);return true", arguments: [:], in: nil, in: .page) { [weak self] result in
+            guard let self else { return }
+            if case .success = result {
+                self.captureFrameElapsed = ProcessInfo.processInfo.systemUptime - presentationStarted
+                Log.write("Gemini capture presentation: native=\(self.capturePresentationElapsed), pageFrame=\(self.captureFrameElapsed) seconds")
+            }
+        }
         let script = """
         try {
             const deadline = Date.now() + 15000;
@@ -289,7 +302,7 @@ final class GeminiWebTranscriber: NSObject, WKNavigationDelegate, WKUIDelegate, 
     func verificationLoseFocus() { sessionWindow.resignKey();NSApp.deactivate();windowDidResignKey(Notification(name:NSWindow.didResignKeyNotification,object:sessionWindow)) }
     func verificationState() async throws -> [String:Any] {
         var result=(try await webView.evaluateJavaScript("({ready:!!window.ZenRayComposer&&!!window.ZenRayGemini?.ready(),nativeWaveform:!!document.querySelector('butterfly-wave-view canvas'),draft:document.querySelector('[role=\"textbox\"][contenteditable=\"true\"]')?.innerText||''})")) as? [String:Any] ?? [:]
-        result["transitionElapsed"]=resultTransitionElapsed;result["appActive"]=NSApp.isActive;result["presented"]=composerPresented;result["alpha"]=Double(sessionWindow.alphaValue)
+        result["capturePresentationElapsed"]=capturePresentationElapsed;result["captureFrameElapsed"]=captureFrameElapsed;result["transitionElapsed"]=resultTransitionElapsed;result["appActive"]=NSApp.isActive;result["presented"]=composerPresented;result["alpha"]=Double(sessionWindow.alphaValue)
         result["recording"]=liveRecording;result["starting"]=liveStarting;result["finishing"]=liveFinishing
         result["width"]=Double(sessionWindow.frame.width)
         result["right"]=Double(sessionWindow.frame.maxX)
