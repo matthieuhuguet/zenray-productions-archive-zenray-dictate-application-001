@@ -6,7 +6,7 @@
 	<dict>
 		<key>Resources/AppIcon.icns</key>
 		<data>
-		Ms66Igk6+1CTPFIojbtcRK5LtJ4=
+		k8Wi1KegkOZec016m2c0FlpWicU=
 		</data>
 		<key>Resources/Fonts/AnthropicMono-Regular.ttf</key>
 		<data>
@@ -15,6 +15,10 @@
 		<key>Resources/Fonts/AnthropicSerif-Regular.ttf</key>
 		<data>
 		rymDnNcTglm94OpE9X98QB172tU=
+		</data>
+		<key>Resources/Fonts/GT-Sectra-LCGV-Regular-Italic.otf</key>
+		<data>
+		v8pZ2eduqnUmA1LcSHWyEj9H3ZU=
 		</data>
 		<key>Resources/Fonts/InterVariable.ttf</key>
 		<data>
@@ -35,7 +39,7 @@
 		<dict>
 			<key>hash2</key>
 			<data>
-			Pl/JN9ex9SnegE36ajlNL6GaCVdGEFTK76A5R5yUvb8=
+			1kXj5wcu7BG8SjNdAbfZIlDWulO13Zs4Lloz8QvUWT8=
 			</data>
 		</dict>
 		<key>Resources/Fonts/AnthropicMono-Regular.ttf</key>
@@ -50,6 +54,13 @@
 			<key>hash2</key>
 			<data>
 			rq0fmEamva8rQ1AJBZX0uCcNo1tv/Z+H4eV20wv7yME=
+			</data>
+		</dict>
+		<key>Resources/Fonts/GT-Sectra-LCGV-Regular-Italic.otf</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			Hral4LeCRq7t9FfcKuraGNYCBQ08DOdL31Pkw2jQPB8=
 			</data>
 		</dict>
 		<key>Resources/Fonts/InterVariable.ttf</key>
