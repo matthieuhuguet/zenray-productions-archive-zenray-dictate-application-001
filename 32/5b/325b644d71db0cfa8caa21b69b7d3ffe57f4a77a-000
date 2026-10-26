@@ -1,0 +1,33 @@
+import AppKit
+import ScreenCaptureKit
+import CoreGraphics
+
+// 26 October 2026, 16:18 CET: inspect and capture only the specified diagnostic browser, never another app.
+let arguments = CommandLine.arguments
+ guard arguments.count >= 2, let pid = Int32(arguments[1]) else { fatalError("Usage: InspectFullscreen <pid> [output.png]") }
+let application = NSRunningApplication(processIdentifier: pid)
+let rows = CGWindowListCopyWindowInfo([.excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] ?? []
+let selected = rows.filter { ($0[kCGWindowOwnerPID as String] as? Int32) == pid }
+print("application", application?.bundleURL?.path ?? "missing")
+for row in selected { print(row) }
+if arguments.count >= 3 {
+    Task { @MainActor in
+        do {
+            let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: false)
+            guard let _ = content.applications.first(where: { $0.processID == pid }), let _ = content.displays.first else { throw NSError(domain: "Missing diagnostic browser or display", code: 1) }
+            let window = content.windows.first { $0.owningApplication?.processID == pid && $0.frame.width > 1000 && $0.frame.height > 100 && $0.frame.height < 160 }!
+            let filter = SCContentFilter(desktopIndependentWindow: window)
+            let config = SCStreamConfiguration()
+            config.sourceRect = CGRect(origin: .zero, size: window.frame.size)
+            config.width = Int(window.frame.width) * 2
+            config.height = Int(window.frame.height) * 2
+            config.showsCursor = false
+            let image = try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: config)
+            let bitmap = NSBitmapImageRep(cgImage: image)
+            try bitmap.representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath: arguments[2]))
+            print("captured", arguments[2])
+            exit(0)
+        } catch { fputs("\(error)\n", stderr); exit(1) }
+    }
+    dispatchMain()
+}
