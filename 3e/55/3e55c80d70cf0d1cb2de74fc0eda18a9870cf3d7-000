@@ -20,9 +20,25 @@
 		<data>
 		v8pZ2eduqnUmA1LcSHWyEj9H3ZU=
 		</data>
+		<key>Resources/Fonts/GT-Standard-L-Standard-Bold.otf</key>
+		<data>
+		BVc7iIXKQnpr5d+M/2hl1fC7eSY=
+		</data>
+		<key>Resources/Fonts/GT-Standard-L-Standard-Regular.otf</key>
+		<data>
+		BTJGhNg/OhmSQvEimIuNHXY45a0=
+		</data>
+		<key>Resources/Fonts/GT-Ultra-Standard-Regular.otf</key>
+		<data>
+		fbBfh4ozcv4+hj2sxFzhP04UOWA=
+		</data>
 		<key>Resources/Fonts/InterVariable.ttf</key>
 		<data>
 		QZQUFabejz3HdoIsz6ApUWFdQ1s=
+		</data>
+		<key>Resources/Fonts/Literata[opsz,wght].ttf</key>
+		<data>
+		01O/v2JWxH1Qg8/JwOo9ej3ItJk=
 		</data>
 		<key>Resources/GeminiBridge.js</key>
 		<data>
@@ -63,11 +79,39 @@
 			Hral4LeCRq7t9FfcKuraGNYCBQ08DOdL31Pkw2jQPB8=
 			</data>
 		</dict>
+		<key>Resources/Fonts/GT-Standard-L-Standard-Bold.otf</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			kye6GudWzzvIeVnTs3W2W4zxQTW4vVOg8kADKib8fHc=
+			</data>
+		</dict>
+		<key>Resources/Fonts/GT-Standard-L-Standard-Regular.otf</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			A+XylLh2nBRJxqKluY+XuGsFYWdS38pPfJ9wUf2g8xo=
+			</data>
+		</dict>
+		<key>Resources/Fonts/GT-Ultra-Standard-Regular.otf</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			AnnFKy2zK5gRus/c690FuZQ9KXVGplAeIylgIAWzs/0=
+			</data>
+		</dict>
 		<key>Resources/Fonts/InterVariable.ttf</key>
 		<dict>
 			<key>hash2</key>
 			<data>
 			SYmxJZJJkbkNBbLRbg44jEj31buLMFObv5x1UnjQzK8=
+			</data>
+		</dict>
+		<key>Resources/Fonts/Literata[opsz,wght].ttf</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			tBE4yTcxEvMqu1icwi6GdLBu1ASLDFE76SK90m8nREA=
 			</data>
 		</dict>
 		<key>Resources/GeminiBridge.js</key>
