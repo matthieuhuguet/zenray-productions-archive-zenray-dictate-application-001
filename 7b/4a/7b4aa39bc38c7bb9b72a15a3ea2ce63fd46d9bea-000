@@ -3,8 +3,10 @@ import CoreText
 
 // 25 October 2026, 19:20 CEST: verification entry point, `ZenRayDictate --transcribe <audio file>` runs the
 // configured Claude engine headless and prints the text, so the engine is testable without the interface.
-if CommandLine.arguments.count == 3, CommandLine.arguments[1] == "--transcribe" {
+// 26 October 2026: `--transcribe <file> --bad-token` first seeds a rejected token (valid by the clock) to prove the 401 recovery.
+if CommandLine.arguments.count >= 3, CommandLine.arguments[1] == "--transcribe" {
     let url = URL(fileURLWithPath: CommandLine.arguments[2])
+    if CommandLine.arguments.contains("--bad-token") { ClaudeCredentials.shared.seed(token: "rejected-token-for-test", expiresAt: Date().addingTimeInterval(3600)) }
     let done = DispatchSemaphore(value: 0); var code: Int32 = 0
     Task.detached {
         do { let result = try await ClaudeVoiceTranscriber().transcribe(audioURL: url); print("\(result.provider)\t\(result.text)") }
@@ -42,14 +44,16 @@ if CommandLine.arguments.count == 2, CommandLine.arguments[1] == "--overlay-prev
 
 // 25 October 2026, 21:50 CEST: `ZenRayDictate --live-latency <audio file>` streams the file through the live session at
 // real-time pace, as a voice would be, then prints how long after the stop the live text and the final text were ready.
-if CommandLine.arguments.count == 3, CommandLine.arguments[1] == "--live-latency" {
+if CommandLine.arguments.count >= 3, CommandLine.arguments[1] == "--live-latency" {
     let url = URL(fileURLWithPath: CommandLine.arguments[2])
+    if CommandLine.arguments.contains("--bad-token") { ClaudeCredentials.shared.seed(token: "rejected-token-for-test", expiresAt: Date().addingTimeInterval(3600)) }
     let done = DispatchSemaphore(value: 0); var code: Int32 = 0
     Task.detached {
         do {
             let pcm = try ClaudeVoiceTranscriber.pcm16(from: url)
-            _ = try ClaudeVoiceTranscriber.token()
-            let session = try ClaudeLiveSession(preferences: DictationLibrary.shared.document.preferences)
+            let preferences = DictationLibrary.shared.document.preferences
+            let token = try await ClaudeCredentials.shared.freshToken(cli: preferences.claudeExecutable)
+            let session = try ClaudeLiveSession(preferences: preferences, token: token)
             var offset = 0
             while offset < pcm.count { let end = min(offset + 1_280, pcm.count); session.feed(pcm.subdata(in: offset..<end)); offset = end; try await Task.sleep(nanoseconds: 40_000_000) }
             let stop = Date()
