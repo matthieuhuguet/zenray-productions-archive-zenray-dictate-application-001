@@ -55,7 +55,7 @@ final class ClaudeCredentials: @unchecked Sendable {
         var keychainService = "Claude Code-credentials"
         var skew: TimeInterval = 120               // a token expiring within 2 minutes counts as expired
         var refreshMargin: TimeInterval = 1800     // refresh in the background when less than 30 minutes remain
-        var refreshTimeout: TimeInterval = 45      // the Claude CLI call must finish within this
+        var refreshTimeout: TimeInterval = 30      // the Claude CLI call must finish within this
         var checkInterval: TimeInterval = 300      // background check period
     }
     var settings = Settings()

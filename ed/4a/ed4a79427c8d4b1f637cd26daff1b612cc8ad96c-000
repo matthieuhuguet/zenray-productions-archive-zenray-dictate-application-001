@@ -109,4 +109,46 @@ final class ClaudeCredentialsTests: XCTestCase {
         XCTAssertTrue(ClaudeDictationFailure.notSignedIn("x").localizedDescription.contains("claude /login"))
         XCTAssertFalse(ClaudeDictationFailure.unauthorized.localizedDescription.contains("bad response"))
     }
+
+    func testKeytermsSkipSnippetsAndStayWithinTheBudget() {
+        var preferences = DictationPreferences()
+        preferences.claudeKeyterms = "Houdini, " + String(repeating: "x", count: 60) + ", Unreal"
+        preferences.claudeKeytermLimit = 50
+        let terms = ClaudeVoiceTranscriber.keyterms(preferences: preferences)
+        XCTAssertTrue(terms.contains("Houdini") && terms.contains("Unreal"))
+        XCTAssertFalse(terms.contains { $0.count > ClaudeVoiceTranscriber.Wire.maxKeytermLength }, "a 60-character entry is a snippet")
+        XCTAssertLessThanOrEqual(terms.joined(separator: ",").count, ClaudeVoiceTranscriber.Wire.maxKeytermCharacters)
+    }
+
+    // MARK: Durability (26 October 2026)
+
+    @MainActor func testHealthVerdictsRaiseAlarmsOnlyForRealEngineFaults() {
+        XCTAssertEqual(ClaudeHealth.verdict(for: nil), .healthy)
+        XCTAssertEqual(ClaudeHealth.verdict(for: .empty), .healthy, "silence is the expected answer to 0.6 s of silence")
+        XCTAssertEqual(ClaudeHealth.verdict(for: .busy), .skip)
+        XCTAssertEqual(ClaudeHealth.verdict(for: .network("offline")), .skip, "being offline says nothing about the engine")
+        for failure in [ClaudeDictationFailure.unauthorized, .noToken, .notSignedIn("x"), .rejected("HTTP 404")] {
+            guard case .unhealthy = ClaudeHealth.verdict(for: failure) else { return XCTFail("\(failure) must raise the alarm") }
+        }
+    }
+
+    func testSilenceNeverTriggersTheLocalFallback() {
+        XCTAssertFalse(ClaudeDictationFailure.empty.allowsLocalFallback, "Whisper invents words on silence")
+        for failure in [ClaudeDictationFailure.unauthorized, .busy, .network("x"), .rejected("x"), .noToken, .notSignedIn("x")] {
+            XCTAssertTrue(failure.allowsLocalFallback)
+        }
+    }
+
+    func testLocalFallbackIsOnByDefault() {
+        XCTAssertTrue(DictationPreferences().allowLocalFallback)
+    }
+
+    func testDeadlineGivesUpOnAHangingServer() async {
+        do {
+            _ = try await TranscriptionPipeline.withDeadline(seconds: 0.2) { try await Task.sleep(nanoseconds: 5_000_000_000); return "late" }
+            XCTFail("must time out")
+        } catch { guard case ClaudeDictationFailure.network = error else { return XCTFail("wrong error \(error)") } }
+        let quick = try? await TranscriptionPipeline.withDeadline(seconds: 5) { "fast" }
+        XCTAssertEqual(quick, "fast")
+    }
 }
